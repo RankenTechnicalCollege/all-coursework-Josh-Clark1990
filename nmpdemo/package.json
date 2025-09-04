@@ -1,0 +1,19 @@
+{
+  "name": "mydemo",
+  "version": "1.0.0",
+  "description": "demo for class",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start-dev": "nodemon server.js"
+  },
+  "keywords": [
+    "nothing"
+  ],
+  "author": "Courtney Clark",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
