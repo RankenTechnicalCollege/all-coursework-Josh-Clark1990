@@ -1,0 +1,24 @@
+{
+  "name": "final-project",
+  "version": "1.0.0",
+  "description": "issue tracker for tracking software bugs during development process",
+  "keywords": [
+    "issue",
+    "tracker"
+  ],
+  "homepage": "https://github.com/RankenTechnicalCollege/all-coursework-Josh-Clark1990#readme",
+  "bugs": {
+    "url": "https://github.com/RankenTechnicalCollege/all-coursework-Josh-Clark1990/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RankenTechnicalCollege/all-coursework-Josh-Clark1990.git"
+  },
+  "license": "MIT",
+  "author": "Courtney Clark",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
