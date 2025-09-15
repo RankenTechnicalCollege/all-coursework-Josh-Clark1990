@@ -1,0 +1,51 @@
+Lab 02-01
+exercise 1
+-------------------------------------------------------
+1) db.movies.find()
+2) db.theaters.find()
+3) db.movies.find({genres: {$in:["Documentaries"]}})
+4) db.movies.find({"imbd.rating": {$gte: 7}})
+5) db.movies.find({countries: "France"})
+6) db.movies.find({released: {$gte: new Date("2010-01-01"),$lt: new Date("2011-01-01")}})
+7) db.theaters.find({"location.geo": { $near :{$geometry: { type: "Point",  coordinates: [ -90.24668072897009, 38.65350839103837 ] }, $minDistance: 1, $maxDistance: 160934.4}}}}
+8) db.comments.find({"movie_id":ObjectId("573a13a7f29313caabd1aa03")}).sort({"date":"-1"}).limit(10)
+9) db.comments.aggregate(
+  {$sortByCount: "$name"}, 
+  {$limit:10})
+10) db.movies.find().sort({"tomatoes.rating": -1}).limit(10)
+
+exercise 2
+--------------------------------------------------------------------------------------
+1)db.movies.insertOne({
+  plot: "The rebel alliance is being hunted down the Galactic Empire, led by Darth Vader and his fleet and his flagship, the Executor super star destroyer",
+  title: "Star Wars Episode V: The Empire Strikes Back",
+  rating: "10/10",
+  cast: ["Mark Hamil", "Harison Ford", "Carrie Fischer", "James Earl Jones"],
+})
+
+2)db.movies.insertOne({
+  plot: "The rebel alliance is being hunted down the Galactic Empire, led by Darth Vader and his fleet and his flagship, the Executor super star destroyer",
+  title: "Star Wars Episode V: The Empire Strikes Back",
+  rating: "10/10",
+  cast: ["Mark Hamil", "Harison Ford", "Carrie Fischer", "James Earl Jones"],
+})
+
+3) db.theaters.insertOne({theaterId: 1234, location: {adddress: {street: "1234 Fake Street", city: "Townsville", state: "Ohio"}} })
+
+4) db.comments.insertOne({
+  name: "Courtney Clark",
+  movie_id: ObjectId('573a13a0f29313caabd02baf'),
+  text: "Pretentious and boring"
+})
+
+5)
+
+6) db.movies.updateOne({title:"The Great Train Robbery"}, {$set:{countries: "France"}})
+
+7) db.movies.insertOne({genre: "Cyberpunk", $push: {title: "Ghost In The Shell"}})
+
+8) db.movies.updateOne({title: "The Italian"}, { $set: {cast: ["Uma Thurman", "Danny Devito", "Aubrey Plaza", "George Clooney"]}})
+
+9) db.theaters.deleteOne({_id: ObjectId('59a47286cfa9a3a73e51e72c') })
+
+10) db.users.deleteOne({_id: ObjectId('59b99db4cfa9a34dcd7885b6') })
