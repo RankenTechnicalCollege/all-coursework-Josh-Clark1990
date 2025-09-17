@@ -19,8 +19,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 app.use(express.static('hot1/dist'));
-app.use('api/mpg', mpgRouter);
-app.use('api/temp', tempRouter);
-app.use('api/interest', interestRouter);
-app.use('api/income-tax', incomeTaxRouter);
+app.use('/api/mpg', mpgRouter);
+app.use('/api/temp', tempRouter);
+app.use('/api/interest', interestRouter);
+app.use('/api/income-tax', incomeTaxRouter);
+
 
