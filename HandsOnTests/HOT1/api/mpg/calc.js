@@ -48,4 +48,6 @@ router.post('/calc', (req, res) => {
   }
 });
 
+debugCalc(`MPG calculated = ${averageMpg}`);
+
 export { router as mpgRouter };

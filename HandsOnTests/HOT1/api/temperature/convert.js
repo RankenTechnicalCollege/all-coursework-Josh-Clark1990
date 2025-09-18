@@ -51,4 +51,6 @@ router.post('/convert', (req, res) => {
   }
 });
 
+debugTemp(`Conversion performed has been logged`);
+
 export { router as tempRouter };

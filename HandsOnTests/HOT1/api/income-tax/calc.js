@@ -75,4 +75,6 @@ router.post('/calc', (req, res) => {
   }
 });
 
+debugTax(`${mode} tax calculated for income ${incomeAmount}`);
+
 export { router as incomeTaxRouter };
