@@ -10,47 +10,31 @@ router.post('/', (req, res) => {
   res.send('Welcome to the Temperature Conversion API');
 });
 
-// Fahrenheit → Celsius
-const FtoC = (req, res) => {
-  const fahrenheit = parseFloat(req.body.fahrenheit);
-  if (isNaN(fahrenheit)) {
-    res.status(400).json({ error: 'Invalid Fahrenheit value' });
-    return null;
-  } else {
-    return ((fahrenheit - 32) * 5 / 9).toFixed(2);
-  }
-};
 
-// Celsius → Fahrenheit
-const CtoF = (req, res) => {
-  const celsius = parseFloat(req.body.celsius);
-  if (isNaN(celsius)) {
-    res.status(400).json({ error: 'Invalid Celsius value' });
-    return null;
-  } else {
-    return ((celsius * 9 / 5) + 32).toFixed(2);
-  }
-};
-
-// Unified endpoint that switches mode based on user input
 router.post('/convert', (req, res) => {
-  const { mode } = req.body; // "FtoC" or "CtoF"
+  const temp = parseFloat(req.body.temp);
+  if (isNaN(temp)) {
+    return res.status(400).json({ error: 'Invalid temperature value' });
+  }
+
+  const mode = req.body.mode;
+  const validModes = ['FtoC', 'CtoF'];
+
+  if (!validModes.includes(mode)) {
+    return res.status(400).json({ error: 'Invalid mode. Use "FtoC" or "CtoF".' });
+  }
+
+  let convertedTemp;
 
   if (mode === 'FtoC') {
-    const celsius = FtoC(req, res);
-    if (celsius !== null) {
-      res.json({ celsius: celsius });
-    }
+    convertedTemp = ((temp - 32) * 5 / 9).toFixed(2);
+    res.json({ celsius: convertedTemp });
   } else if (mode === 'CtoF') {
-    const fahrenheit = CtoF(req, res);
-    if (fahrenheit !== null) {
-      res.json({ fahrenheit: fahrenheit });
-    }
-  } else {
-    res.status(400).json({ error: 'Invalid mode. Use "FtoC" or "CtoF".' });
+    convertedTemp = ((temp * 9 / 5) + 32).toFixed(2);
+    res.json({ fahrenheit: convertedTemp });
   }
-});
 
-debugTemp(`Conversion performed has been logged`);
+  debugTemp(`Converted temperature is ${convertedTemp}`);
+});
 
 export { router as tempRouter };

@@ -25,7 +25,7 @@ const mode = (req, res) => {
 // Validate income
 const incomeAmount = (req, res) => {
   const income = parseFloat(req.body.income);
-  if (isNaN(income) || income < 0) {
+  if (isNaN(income) || income <= 0) {
     res.status(400).json({ error: 'Invalid income value' });
     return null;
   } else {
@@ -59,22 +59,24 @@ const marriedTax = (income) => {
 router.post('/calc', (req, res) => {
   const filingMode = mode(req, res);
   const income = incomeAmount(req, res);
+  let taxOwed = 0;
 
   if (filingMode !== null && income !== null) {
-    let taxOwed;
     if (filingMode === 'single') {
       taxOwed = singleTax(income);
     } else if (filingMode === 'married') {
       taxOwed = marriedTax(income);
     }
+    debugTax(`${taxOwed} has been calculated for ${filingMode} filer with income ${income}`);
     res.json({
       mode: filingMode,
       income: income,
-      taxOwed: taxOwed.toFixed(2),
+      taxOwed: Math.ceil(taxOwed)
     });
   }
-});
+  else {
+    return;
+}});
 
-debugTax(`${mode} tax calculated for income ${incomeAmount}`);
 
 export { router as incomeTaxRouter };

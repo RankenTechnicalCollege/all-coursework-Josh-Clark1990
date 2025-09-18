@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import debug from 'debug';
 
 dotenv.config();
-const debugCalc = debug('app:calc');
+const debugMpg = debug('app:calc');
 const router = express.Router();
 
 router.post('/', (req, res) => {
@@ -46,8 +46,9 @@ router.post('/calc', (req, res) => {
     const mpg = averageMpg(miles, gallons);
     res.json({ mpg: mpg });
   }
+  debugMpg(`Calculated MPG: ${averageMpg(miles, gallons)}`);
 });
 
-debugCalc(`MPG calculated = ${averageMpg}`);
+
 
 export { router as mpgRouter };
