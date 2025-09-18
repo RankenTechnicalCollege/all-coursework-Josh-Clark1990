@@ -56,7 +56,7 @@ const marriedTax = (income) => {
 };
 
 // Unified endpoint that calculates tax based on mode and income
-router.post('/calculate', (req, res) => {
+router.post('/calc', (req, res) => {
   const filingMode = mode(req, res);
   const income = incomeAmount(req, res);
 

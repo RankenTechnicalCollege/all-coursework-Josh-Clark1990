@@ -38,7 +38,7 @@ const averageMpg = (milesDriven, gallonsUsed) => {
 };
 
 // POST endpoint to calculate MPG
-router.post('/calculate', (req, res) => {
+router.post('/calc', (req, res) => {
   const miles = milesDriven(req, res);
   const gallons = gallonsUsed(req, res);
 

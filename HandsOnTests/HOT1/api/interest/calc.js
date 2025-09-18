@@ -13,7 +13,7 @@ router.post('/', (req, res) => {
   res.send('Welcome to the Interest Calculation API');
 });
 
-router.post('/calculate', (req, res) => {
+router.post('/calc', (req, res) => {
   const { principal, interestRate, years } = req.body;
 
   // Parse values
