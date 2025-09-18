@@ -9,7 +9,7 @@ const router = express.Router();
 // Middleware to parse JSON body
 router.use(express.json());
 
-router.get('/', (req, res) => {
+router.post('/', (req, res) => {
   res.send('Welcome to the Interest Calculation API');
 });
 

@@ -6,7 +6,7 @@ dotenv.config();
 const debugCalc = debug('app:calc');
 const router = express.Router();
 
-router.get('/', (req, res) => {
+router.post('/', (req, res) => {
   res.send('Welcome to the MPG Calculator API');
 });
 

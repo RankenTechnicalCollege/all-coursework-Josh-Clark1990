@@ -6,7 +6,7 @@ dotenv.config();
 const debugTax = debug('app:calc');
 const router = express.Router();
 
-router.get('/', (req, res) => {
+router.post('/', (req, res) => {
   res.send('Welcome to the Income Tax Calculation API');
 });
 

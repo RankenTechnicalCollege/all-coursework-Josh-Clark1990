@@ -6,7 +6,7 @@ dotenv.config();
 const debugTemp = debug('app:convert');
 const router = express.Router();
 
-router.get('/', (req, res) => {
+router.post('/', (req, res) => {
   res.send('Welcome to the Temperature Conversion API');
 });
 
