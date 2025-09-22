@@ -1,0 +1,176 @@
+1) db.bugs.find({ authorOfBug: "64b123abc123abc123abc201"})
+
+2) db.users.aggregate([
+  { $match: { email: "courtneymclark1990@gmail.com" } },
+  {
+    $lookup: {
+      from: "bugs",
+      localField: "assignedBugs",
+      foreignField: "_id",
+      as: "assignedBugDetails"
+    }
+  },
+  {
+    $project: {
+      email: 1,
+      fullName: 1,
+      assignedBugDetails: 1
+    }
+  }
+])
+
+3) 
+
+4)
+
+5)
+
+6) db.bugs.find(
+  { 
+    status: "fixed",
+    status: { $ne: "closed" }}
+)
+
+7) db.bugs.find(
+  { 
+    $or: [
+      { stepsToReproduce: { $exists: false } },
+      { stepsToReproduce: "" }                   
+    ]
+  }
+)
+
+8) db.bugs.find(
+  {
+    $or: [
+      { testCases: { $exists: false } },  // field is missing
+      { testCases: { $size: 0 } }         // array exists but is empty
+    ]
+  },
+  { title: 1, description: 1, testCases: 1 }
+)
+
+9) db.bugs.find(
+  {
+    $or: [
+      { workHours: { $exists: false } },
+      { workHours: { $size: 0 } }     
+    ]
+  }
+)
+
+10) db.bugs.aggregate([
+  {
+    $project: {
+      title: 1,
+      description: 1,
+      numComments: { $size: { $ifNull: ["$comments", []] } }
+    }
+  }
+])
+
+11) db.bugs.aggregate([
+  {
+    $project: {
+      title: 1,
+      description: 1,
+      totalHours: { 
+        $sum: { $ifNull: ["$workHours", []] }
+      }
+    }
+  }
+])
+
+
+12) db.bugs.find(
+  { "testCases.status": "failed" },
+)
+
+
+exercise 4
+-------------------------------------------------
+1)db.users.insertOne({
+  email: "mkatsuragi@nerv.gov",
+  password: "6666",
+  fullName: "Misato Katsuragi",
+  givenName: "Misato",
+  familyName: "Katsuragi",
+  role: "developer",
+  createdBugs: [],
+  assignedBugs: []
+})
+
+2) db.bugs.insertOne({
+  title: "Bug Example",
+  description: "This is a description",
+  stepsToReproduce: "Step 1, Step 2, Step 3",
+  authorOfBug: "mkatsuragi@nerv.gov",
+  dateTimeOfCreation: new Date("2025-09-21T10:21:45Z"),
+  classificationOfBug: "software",
+  assignedTo: [],
+  edits: [],
+  comments: [],
+  testCases: [],
+  workHours: []
+})
+
+3) db.bugs.updateOne(
+  { _id: ObjectId("68d03a4c89e77f59db7a9900") },
+  { $addToSet: { assignedTo: ObjectId("68d02a4c89e77f59db7a88d4") } }
+)
+
+4) db.bugs.updateOne(
+  { _id: ObjectId("68d03a4c89e77f59db7a9900") },
+  { $push: { 
+      comments: {
+        author: "wedge_antiles@roguesquadren.net",
+        comment: "Tested the bug and found it still occurs under edge cases.",
+        dateTimeOfCreation: new Date()
+      }
+    } 
+  }
+)
+
+5) db.bugs.updateOne(
+  { _id: ObjectId("68d03a4c89e77f59db7a9900") },
+  { $push: { 
+      testCases: {
+        testName: "Edge Case Validation",
+        status: "failed",
+        author: "wedge_antiles@roguesquadren.net",
+        dateTimeOfCreation: new Date()
+      }
+    } 
+  }
+)
+
+6) db.bugs.updateOne(
+  { _id: ObjectId("68d03a4c89e77f59db7a9900") },
+  { $push: { 
+      workHours: {
+        developer: "mkatsuragi@nerv.gov",
+        hours: 3,
+        dateTimeOfWork: new Date(),
+      }
+    } 
+  }
+)
+
+7) db.bugs.updateOne(
+  { _id: ObjectId("68d03a4c89e77f59db7a9900") },
+  { $set: {
+      status: "fixed",
+      fixedAt: new Date(),
+    } 
+  }
+)
+
+8)  db.bugs.updateOne(
+  { _id: ObjectId("68d03a4c89e77f59db7a9900") },
+  { $set: { 
+      status: "closed", 
+      closedAt: new Date(),
+      closedBy: "wedge_antiles@roguesquadren.net"  // QA or Business Analyst closing it
+    } 
+  }
+)
