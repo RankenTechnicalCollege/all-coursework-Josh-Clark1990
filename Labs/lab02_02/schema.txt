@@ -1,0 +1,160 @@
+// ==============================
+// Users Collection
+// ==============================
+db.createCollection("users");
+
+db.users.insertMany([
+  {
+    "email": "courtneymclark1990@gmail.com",
+    "password": "1111",
+    "fullName": "Courtney Clark",
+    "givenName": "Courtney",
+    "familyName": "Clark",
+    "role": "Developer",
+    "createdBugs": [],
+    "assignedBugs": []
+  },
+  {
+    "email": "konata_izumi@yahoo.com",
+    "password": "2222",
+    "fullName": "Konata Izumi",
+    "givenName": "Konata",
+    "familyName": "Izumi",
+    "role": "Business Analyst",
+    "createdBugs": [],
+    "assignedBugs": []
+  },
+  {
+    "email": "kramer_cosmo@seinfeld.org",
+    "password": "3333",
+    "fullName": "Cosmo Kramer",
+    "givenName": "Cosmo",
+    "familyName": "Kramer",
+    "role": "Quality Analyst",
+    "createdBugs": [],
+    "assignedBugs": []
+  },
+  {
+    "email": "wedge_antiles@roguesquadren.net",
+    "password": "4444",
+    "fullName": "Wedge Antiles",
+    "givenName": "Wedge",
+    "familyName": "Antiles",
+    "role": "Developer",
+    "createdBugs": [],
+    "assignedBugs": []
+  },
+  {
+    "email": "darthcaedus@gas.net",
+    "password": "5555",
+    "fullName": "Jacen Solo",
+    "givenName": "Jacen",
+    "familyName": "Solo",
+    "role": "Technical Manager",
+    "createdBugs": [],
+    "assignedBugs": []
+  }
+]);
+
+// Create index on email for quick login lookup
+db.users.createIndex({ email: 1 }, { unique: true });
+
+// ==============================
+// Bugs Collection
+// ==============================
+db.createCollection("bugs");
+
+db.bugs.insertMany([
+  {
+    "_id": "bug1",
+    "title": "Bug 1",
+    "description": "This is a description for bug 1.",
+    "stepsToReproduce": "Step 1, Step 2, Step 3 for bug 1.",
+    "authorOfBug": "courtneymclark1990@gmail.com",
+    "dateTimeOfCreation": new Date("2025-03-15T12:00:00Z"),
+    "classificationOfBug": "unclassified",
+    "assignedTo": ["wedge_antiles@roguesquadren.net"],
+    "edits": [
+      {
+        "editor": "courtneymclark1990@gmail.com",
+        "dateTime": new Date("2025-03-16T09:00:00Z"),
+        "changes": "Initial creation"
+      }
+    ],
+    "comments": [
+      {
+        "author": "konata_izumi@yahoo.com",
+        "dateTime": new Date("2025-03-16T10:00:00Z"),
+        "comment": "Please verify the steps."
+      }
+    ],
+    "testCases": [
+      {
+        "tester": "kramer_cosmo@seinfeld.org",
+        "testCase": "Test case 1",
+        "result": "passed"
+      }
+    ],
+    "workHours": [
+      {
+        "developer": "wedge_antiles@roguesquadren.net",
+        "hours": 3,
+        "versionFixed": "v1.0.1",
+        "dateFixed": new Date("2025-03-17T14:00:00Z")
+      }
+    ],
+    "isFixed": true,
+    "isClosed": false
+  },
+  {
+    "_id": "bug2",
+    "title": "Bug 2",
+    "description": "This is a description for bug 2.",
+    "stepsToReproduce": "Step 1, Step 2, Step 3 for bug 2.",
+    "authorOfBug": "konata_izumi@yahoo.com",
+    "dateTimeOfCreation": new Date("2025-04-10T09:30:00Z"),
+    "classificationOfBug": "approved",
+    "assignedTo": ["courtneymclark1990@gmail.com"],
+    "edits": [],
+    "comments": [],
+    "testCases": [],
+    "workHours": [],
+    "isFixed": false,
+    "isClosed": false
+  },
+  {
+    "_id": "bug3",
+    "title": "Bug 3",
+    "description": "This is a description for bug 3.",
+    "stepsToReproduce": "",
+    "authorOfBug": "kramer_cosmo@seinfeld.org",
+    "dateTimeOfCreation": new Date("2025-05-20T14:45:00Z"),
+    "classificationOfBug": "unclassified",
+    "assignedTo": [],
+    "edits": [],
+    "comments": [],
+    "testCases": [],
+    "workHours": [],
+    "isFixed": false,
+    "isClosed": false
+  },
+  {
+    "_id": "bug4",
+    "title": "Bug 4",
+    "description": "This is a description for bug 4.",
+    "stepsToReproduce": "Step 1, Step 2, Step 3 for bug 4.",
+    "authorOfBug": "wedge_antiles@roguesquadren.net",
+    "dateTimeOfCreation": new Date("2025-06-05T11:20:00Z"),
+    "classificationOfBug": "duplicate",
+    "assignedTo": ["kramer_cosmo@seinfeld.org"],
+    "edits": [],
+    "comments": [],
+    "testCases": [],
+    "workHours": [],
+    "isFixed": false,
+    "isClosed": false
+  }
+]);
+
+// Create index on title for faster searches
+db.bugs.createIndex({ title: 1 });
