@@ -1,0 +1,128 @@
+1) db.movies.insertOne({
+  Title: "The Super Mario Bros Movie",
+  Year: 2023,
+  Generes: "Animation",
+  Directors:["Aaron Horvath", "Micheael Jelenic"],
+  Cast: ["Jack Black", "Anya Taylor-Joy", "Chris Pratt", "Charlie Day"]
+  })
+
+2)
+
+3) db.movies.updateOne({tite:"The Lion King"},{$set:{title:"The Lion King (1994)"}})
+
+4) db.movies.deleteOne({title: "The Lion King (1994"})
+
+5) db.users.insertOne({
+  Name: "John Doe",
+  Email: "johndoe@example.com",
+  Password: "12345"
+})
+
+6)
+
+7) db.users.updateOne({email: "jondoe@example.com"}, {$set:{name:"John Smith"}})
+
+8) db.users.updateOne({email: "johndoe@example.com"}, {$set:{password:"newpassword"}})
+
+9) db.users.deleteOne({email: "johndoe@example.com"})
+
+10) db.comments.insertOne({movie_id: "573a1399f29313caabceea14" },
+                      {name: "Ayra Stark"},
+                      {text: "Great movie! Highly recommend it"}
+                     )
+
+11)!!!  db.comments.aggregate([
+  {
+    $lookup:{from: "movies", localField:"comments", foreignField: "title" from "movies", as "movie"}
+  },
+    {
+    $project: {_id: 1, text: 1, "movie": 1}
+    }
+  ])   
+
+12)  db.comments.updateOne(
+  {
+    _id: ObjectId("5a9427648b0beebeb69579f5")
+  },
+  {
+		$set:{text: "This movie is a masterpiece"} 
+  }
+)
+
+13)  db.comments.deleteOne({_id: ObjectId("5a9427648b0beebeb69579f5")})
+
+14)  db.movies.find({genres:"Comedy"})
+
+15)  db.movies.updateOne(
+  {_id:ObjectId("573a1390f29313caabcd446f")},
+  {$push:{genre: "Drama"}}
+                   )
+16) db.movies.deleteMany({"year":{$lt:2000}})
+
+17)  db.movies.find(
+  {year: { $gt:2009, $lt:2021 }},
+  {sort : {rating: -1}}
+)
+
+18) db.movies.updateMany({"year":2015},{$set:{year:2016}})
+
+19) db.movies.deleteMany({director: "Christopher Nolan"})
+
+20) db.users.insertOne(
+  {
+    name: "Lance Uppercut",
+    email: "admin@example.com",
+    password: "1234"
+  }
+)
+
+21) db.users.find({email: {$regex:/admin/}})
+
+22) db.comments.deleteMany({email: "johndoe@example.com"})
+
+23) db.movies.createIndex( {title: 1})
+
+24) db.movies.find({title: {$regex:/^A/}})
+
+25) db.movies.updateMany({genres: "Action"}, {$set:{genres:"Adventure"}})
+
+26) db.movies.find(
+  {year: { $gt:2009, $lt:2021 }},
+  {sort : {rating: -1}}
+)
+
+27) db.movies.aggregate([
+  {
+    $match: { category: "rating" }
+  },
+  {
+    $group: {
+      _id: "$category", 
+      averageRating: { $avg: "$rating" }3
+    }
+  }
+])
+
+
+28)  db.movies.updateOne(
+  {_id:ObjectId('573a1398f29313caabce9d84')},
+  {$set:{rating: 4.5}}
+)
+
+29) db.comments.insertOne(
+  {
+    name: "Peter Griffin",
+    email: "pgriffin@yahoo.com",
+    movie_id:ObjectId('573a1390f29313caabcd4803'),
+    text: "Spoiler? I just met her",
+    date: "no thanks im married"
+  }
+)
+
+Delete all comments that contain the word "spoiler" in their text:
+  db.comments.deleteMany({"text": {$regex: "spoiler", $options: "i"}})
+
+30) 
+
+31) db.movies.aggregate([{$project:{title: { $toUpper: "$title"},}}])
+
