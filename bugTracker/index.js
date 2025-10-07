@@ -16,6 +16,7 @@ app.use(express.static('frontend/dist'));
 app.use('/api/users', (await import('./routes/api/users.js')).usersRouter);
 app.use('/api/bugs', (await import('./routes/api/bugs.js')).bugsRouter);
 app.use('/api/bugs', (await import('./routes/api/comments.js')).commentsRouter);
+app.use('/api/bugs', (await import('./routes/api/test.js')).testRouter);
 
 
 

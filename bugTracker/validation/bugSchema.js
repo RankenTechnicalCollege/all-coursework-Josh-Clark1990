@@ -8,7 +8,7 @@ const bugCreateSchema = Joi.object({
 });
 
 const bugIdSchema = Joi.object({
-  id: Joi.string().length(24).hex().required()
+  bugId: Joi.string().length(24).hex().required()
 });
 
 const bugUpdateSchema = Joi.object({
@@ -31,8 +31,9 @@ const bugCloseSchema = Joi.object({
 
 const bugCommentSchema = Joi.object({
   user_id: Joi.string().length(24).hex().required(),
-  text: Joi.string().min(1).max(500).trim().required(),
+  text: Joi.string().required()
 });
+
 
 const bugCommentSearchSchema = Joi.object({
   bugId: Joi.string().length(24).hex().required(),
