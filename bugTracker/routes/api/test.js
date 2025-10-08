@@ -3,10 +3,11 @@ import { getDb } from '../../database.js';
 import { ObjectId } from 'mongodb';
 import debug from 'debug';
 import {validate} from '../../middleware/validator.js';
-import { testUserSchema } from '../../validation/testSchema.js';
+import { testIdSchema, testUpdateSchema, testUserSchema } from '../../validation/testSchema.js';
 import { bugIdSchema} from '../../validation/bugSchema.js';
 
 const debugPost = debug('test:post')
+const debugList = debug('bugs:list')
 
 const router = express.Router();
 
@@ -76,18 +77,102 @@ router.post(
 // -----------------------------------------------------------------------------
 // Get all test cases from a bug
 // -----------------------------------------------------------------------------
+router.get('/:bugId/tests', validate(bugIdSchema, 'params'), async (req, res) => {
+  try{
+    const db = await getDb();
+    const { bugId } = req.params;
 
+    if(!ObjectId.isValid(bugId)) return res.status(404).json({ error: 'Invalid bug id'});
+
+    const bug = await db.collection('Bugs').findOne(
+      {_id: new ObjectId(bugId) },
+      {projection: {testCases: 1}},
+    );
+
+    if (!bug) return res.status(404).json({ error: 'Bug not found'});
+
+    res.status(200).json(bug);
+      } catch (err) {
+        console.error('Error fetching bug:', err);
+        res.status(500).json({ error: 'Internal server error', details: err.message})
+      }
+    });
 
 // -----------------------------------------------------------------------------
 // Get a specific test case from a bug
 // -----------------------------------------------------------------------------
+router.get('/:bugId/tests/:testId', validate(testIdSchema, 'params'), async (req, res) => {
+  try{
+    const db = await getDb();
+    const { bugId, testId } = req.params;
 
+    if(!ObjectId.isValid(bugId) || (!ObjectId.isValid(testId))) return res.status(404).json({ error: 'Invalid bug/test id'});
+
+    const bug = await db.collection('Bugs').findOne(
+      {_id: new ObjectId(bugId)},
+      {projection: {testCases: 1}},
+    );
+
+    if(!bug || !bug.testCases || bug.testCases.length === 0){
+      return res.status(404).json({ error: 'Test case not found'})
+    }
+
+    const test = bug.testCases.find( t => t._id.toString() === testId);
+
+    if (!test) return res.status(404).json({ error: 'Test case not found'});
+
+    res.status(200).json(test);
+  } catch (err) {
+    console.error('Error fetching test case:', err);
+    res.status(500).json({ error: 'Internal server error', details: err.message});
+  }
+});
 
 
 // -----------------------------------------------------------------------------
 // Edit a test case for a bug
 // -----------------------------------------------------------------------------
+router.patch(
+  '/:bugId/tests/:testId',
+  validate(testIdSchema, 'params'),
+  validate(testUpdateSchema, 'body'),
+  async (req, res) => {
+    try {
+      const db = await getDb();
+      const { bugId, testId } = req.params;
+      const updates = req.body || {};
 
+      if (!ObjectId.isValid(bugId) || !ObjectId.isValid(testId)) {
+        return res.status(400).json({ error: 'Invalid bug or test ID' });
+      }
+
+      const setFields = {};
+      for (const key of ['title', 'description', 'status', 'author_id']) {
+        if (updates[key] !== undefined) {
+          setFields[`testCases.$.${key}`] = updates[key];
+        }
+      }
+      setFields['testCases.$.lastUpdated'] = new Date();
+
+      const result = await db.collection('Bugs').updateOne(
+        { _id: new ObjectId(bugId), 'testCases._id': new ObjectId(testId) },
+        { $set: setFields }
+      );
+
+      if (!result.matchedCount) {
+        return res.status(404).json({ error: 'Test case not found' });
+      }
+
+      res.status(200).json({
+        message: 'Test case updated successfully',
+        lastUpdated: setFields['testCases.$.lastUpdated']
+      });
+    } catch (err) {
+      console.error('Update test case error', err);
+      res.status(500).json({ error: 'Internal server error', details: err.message });
+    }
+  }
+);
 
 // -----------------------------------------------------------------------------
 // Delete a test case from a bug
