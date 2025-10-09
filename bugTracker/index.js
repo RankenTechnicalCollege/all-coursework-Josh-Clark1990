@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 
-
 // Initialize Express app
 const app = express();
 const port = process.env.PORT || 5000;
@@ -18,9 +17,7 @@ app.use('/api/bugs', (await import('./routes/api/bugs.js')).bugsRouter);
 app.use('/api/bugs', (await import('./routes/api/comments.js')).commentsRouter);
 app.use('/api/bugs', (await import('./routes/api/test.js')).testRouter);
 
-
-
 // Start the server
 app.listen(port, () => {
-  console.log(`Example app listening at http://localhost:${port}`);
-})
+    console.log(`Example app listening at http://localhost:${port}`);
+});
