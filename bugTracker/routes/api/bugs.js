@@ -21,34 +21,77 @@ const router = express.Router();
 // Get all bugs
 // -----------------------------------------------------------------------------
 router.get('/', async (req, res) => {
-    try {
-        const db = await getDb();
-        debugList('Fetching all bugs');
+  try {
+    const db = await getDb();
+    debugList('Fetching all bugs');
+    const bugsCollection = db.collection('Bugs');
 
-        const bugs = await db
-            .collection('Bugs')
-            .find(
-                {},
-                {
-                    projection: {
-                        title: 1,
-                        description: 1,
-                        stepsToReproduce: 1,
-                        statusLabel: 1,
-                        createdAt: 1,
-                        lastUpdated: 1
-                    }
-                }
-            )
-            .toArray();
+    const {
+      keywords,
+      classification,
+      minAge,
+      maxAge,
+      closed,
+      page,
+      limit,
+      sortBy,
+      order
+    } = req.query;
 
-        if (!bugs.length) return res.status(404).json({ error: 'No bugs found' });
+    // Pagination
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 0; // 0 = no limit
+    const skip = limitNum > 0 ? (pageNum - 1) * limitNum : 0;
 
-        res.status(200).json(bugs);
-    } catch (err) {
-        console.error('Error fetching bugs:', err);
-        res.status(500).json({ error: 'Internal server error', details: err.message });
+    // Filter
+    const filter = {};
+    if (keywords) filter.$text = { $search: keywords };
+    if (classification) filter.classification = classification;
+    if (closed !== undefined) filter.closed = closed === 'true';
+
+    if (minAge || maxAge) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dateFilter = {};
+      if (maxAge) dateFilter.$gte = new Date(today.getTime() - maxAge * 24 * 60 * 60 * 1000);
+      if (minAge) dateFilter.$lte = new Date(today.getTime() - minAge * 24 * 60 * 60 * 1000);
+      filter.createdAt = dateFilter;
     }
+
+    // Sorting
+    const allowedSortFields = ['classification', 'title', 'assignedUserName', 'authorOfBug', 'statusLabel', 'createdAt'];
+    const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'classification';
+    const sortDirection = order === 'desc' ? -1 : 1;
+    const sort = { [sortField]: sortDirection };
+
+    // Query
+    const bugs = await bugsCollection
+      .find(filter, {
+        projection: {
+          title: 1,
+          description: 1,
+          stepsToReproduce: 1,
+          statusLabel: 1,
+          classification: 1,
+          assignedUserName: 1,
+          authorOfBug: 1,
+          createdAt: 1,
+          lastUpdated: 1,
+          closed: 1
+        }
+      })
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNum)
+      .toArray();
+
+    if (!bugs.length) return res.status(404).json({ error: 'No bugs found' });
+
+    res.status(200).json(bugs);
+  } catch (err) {
+    console.error('Error fetching bugs:', err);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
 });
 
 // -----------------------------------------------------------------------------

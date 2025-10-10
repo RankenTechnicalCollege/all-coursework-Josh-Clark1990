@@ -1,23 +1,32 @@
+// server.js
 import express from 'express';
 import cors from 'cors';
 
-// Initialize Express app
+import { usersRouter } from './routes/api/users.js';
+import { bugsRouter } from './routes/api/bugs.js';
+import { commentsRouter } from './routes/api/comments.js';
+import { testRouter } from './routes/api/test.js';
+
 const app = express();
-const port = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
-app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static('frontend/dist'));
 
-// Route handlers
-app.use('/api/users', (await import('./routes/api/users.js')).usersRouter);
-app.use('/api/bugs', (await import('./routes/api/bugs.js')).bugsRouter);
-app.use('/api/bugs', (await import('./routes/api/comments.js')).commentsRouter);
-app.use('/api/bugs', (await import('./routes/api/test.js')).testRouter);
+// API routes
+app.use('/api/users', usersRouter);
+app.use('/api/bugs', bugsRouter);
+app.use('/api/bugs/comments', commentsRouter);
+app.use('/api/bugs/tests', testRouter);
 
-// Start the server
-app.listen(port, () => {
-    console.log(`Example app listening at http://localhost:${port}`);
+// Health check
+app.get('/', (req, res) => res.send('Bugtracker API running'));
+
+// Use Cloud Run port
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
+

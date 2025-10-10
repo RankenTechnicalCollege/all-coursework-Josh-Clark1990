@@ -1,5 +1,5 @@
 import express from 'express';
-import { getBugs, getDb, getUsers } from '../../database.js';
+import { getDb } from '../../database.js';
 import { ObjectId } from 'mongodb';
 import debug from 'debug';
 import { bugCommentSchema, bugIdSchema, bugCommentSearchSchema } from '../../validation/bugSchema.js';

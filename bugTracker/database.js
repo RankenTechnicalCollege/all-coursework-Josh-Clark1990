@@ -1,6 +1,4 @@
 import { MongoClient, ObjectId } from "mongodb";
-import debug from "debug";
-const debugDb = debug("app:Database");
 import * as dotenv from 'dotenv';
 dotenv.config();
 
@@ -32,13 +30,31 @@ async function connectToDatabase() {
 // Fetch all users from the Users collection
 async function getUsers() {
     const db = await connectToDatabase();
-    return db.collection('Users').find({}).toArray();
+    let query = db.collection('Users').find(filter).sort(sort);
+
+    if (skip > 0){
+        query = query.skip(skip);
+    }
+
+    if (limit > 0){
+        query = query.limit(limit);
+    }
+    return query.toArray();
 }
 
 // Fetch all bugs from the Bugs collection
 async function getBugs() {
     const db = await connectToDatabase();
-    return db.collection('Bugs').find({}).toArray();
+    let query = db.collection('Bugs').find(filter).sort(sort);
+
+    if (skip > 0){
+        query = query.skip(skip);
+    }
+
+    if (limit > 0){
+        query = query.limit(limit);
+    }
+    return query.toArray();
 }
 
 // Return the connected DB object for raw collection access

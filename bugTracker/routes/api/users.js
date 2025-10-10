@@ -27,9 +27,52 @@ router.get('/', async (req, res) => {
         debugList('Fetching all users');
         const db = await getDb();
         const usersCollection = db.collection('Users');
+        const {
+            keywords, 
+            role, 
+            minAge, 
+            maxAge, 
+            page, 
+            limit, 
+            sortBy, 
+            order
+        } = req.query;
+
+        //pagination parameters
+        const pageNum = parseInt(page) || 1;
+        const limitNum = parseInt(limit) || 0; // 0 is no limit
+        const skip = limitNum > 0 ? (pageNum - 1) * limitNum : 0;
+
+        //keyword filter for search
+        const filter = {};
+        if(keywords) filter.$text = {$search: keywords};
+        if(role) filter.role = role;
+
+        if(minAge || maxAge){
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+        const dateFilter = {};
+
+        if(maxAge) dateFilter.$gte = new Date(today.getTime() - maxAge * 24 * 60 * 60 * 1000);
+        if(minAge) dateFilter.$lte = new Date(today.getTime() - minAge * 24 * 60 * 60 * 1000);
+            
+            filter.createdAt = dateFilter;
+        }
+
+        //sort searches
+        const sortOptions = ['role', 'familyName', 'givenName', 'createdDate'];
+
+
+        const sortDirection = order === 'desc' ? -1 : 1;
+
+        const sort = sortOptions[sortBy] || {role: 1};
 
         const users = await usersCollection
             .find(
+                filter,
+                sort,
+
                 {},
                 {
                     projection: {
@@ -42,6 +85,9 @@ router.get('/', async (req, res) => {
                     }
                 }
             )
+            .sort(sort)
+            .skip(skip)
+            .limit(limitNum)
             .toArray();
 
         if (!users || users.length === 0) {
