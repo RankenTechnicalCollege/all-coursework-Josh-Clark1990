@@ -23,85 +23,64 @@ const router = express.Router();
 // Get all users
 // -----------------------------------------------------------------------------
 router.get('/', async (req, res) => {
-    try {
-        debugList('Fetching all users');
-        const db = await getDb();
-        const usersCollection = db.collection('Users');
-        const {
-            keywords, 
-            role, 
-            minAge, 
-            maxAge, 
-            page, 
-            limit, 
-            sortBy, 
-            order
-        } = req.query;
+  try {
+    console.log('Fetching all users');
+    const db = await getDb();
+    const usersCollection = db.collection('Users');
 
-        //pagination parameters
-        const pageNum = parseInt(page) || 1;
-        const limitNum = parseInt(limit) || 0; // 0 is no limit
-        const skip = limitNum > 0 ? (pageNum - 1) * limitNum : 0;
+    const { keywords, role, minAge, maxAge, page, limit, sortBy, order } = req.query;
 
-        //keyword filter for search
-        const filter = {};
-        if(keywords) filter.$text = {$search: keywords};
-        if(role) filter.role = role;
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 0;
+    const skip = limitNum > 0 ? (pageNum - 1) * limitNum : 0;
 
-        if(minAge || maxAge){
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+    const filter = {};
+    if (keywords) filter.$text = { $search: keywords };
+    if (role) filter.role = role;
 
-        const dateFilter = {};
+    if (minAge || maxAge) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-        if(maxAge) dateFilter.$gte = new Date(today.getTime() - maxAge * 24 * 60 * 60 * 1000);
-        if(minAge) dateFilter.$lte = new Date(today.getTime() - minAge * 24 * 60 * 60 * 1000);
-            
-            filter.createdAt = dateFilter;
-        }
+      const dateFilter = {};
+      if (maxAge) dateFilter.$gte = new Date(today.getTime() - maxAge * 24 * 60 * 60 * 1000);
+      if (minAge) dateFilter.$lte = new Date(today.getTime() - minAge * 24 * 60 * 60 * 1000);
 
-        //sort searches
-        const sortOptions = ['role', 'familyName', 'givenName', 'createdDate'];
-
-
-        const sortDirection = order === 'desc' ? -1 : 1;
-
-        const sort = sortOptions[sortBy] || {role: 1};
-
-        const users = await usersCollection
-            .find(
-                filter,
-                sort,
-
-                {},
-                {
-                    projection: {
-                        email: 1,
-                        familyName: 1,
-                        givenName: 1,
-                        createdBugs: 1,
-                        assignedBugs: 1,
-                        role: 1
-                    }
-                }
-            )
-            .sort(sort)
-            .skip(skip)
-            .limit(limitNum)
-            .toArray();
-
-        if (!users || users.length === 0) {
-            debugList('No users found');
-            return res.status(404).json({ error: 'No users found' });
-        }
-
-        debugList(`Found ${users.length} users`);
-        res.status(200).json(users);
-    } catch (err) {
-        console.error('Error fetching users:', err);
-        res.status(500).json({ error: 'Internal server error' });
+      filter.createdAt = dateFilter;
     }
+
+    const sortDirection = order === 'desc' ? -1 : 1;
+    const sort = sortBy ? { [sortBy]: sortDirection } : { role: 1 };
+
+    const users = await usersCollection
+      .find(filter, {
+        projection: {
+          email: 1,
+          familyName: 1,
+          givenName: 1,
+          createdBugs: 1,
+          assignedBugs: 1,
+          role: 1
+        },
+        sort
+      })
+      .skip(skip)
+      .limit(limitNum)
+      .toArray();
+
+    if (!users || users.length === 0) {
+      console.log('No users found');
+      return res.status(404).json({ error: 'No users found' });
+    }
+
+    console.log(`Found ${users.length} users`);
+    res.status(200).json(users);
+  } catch (err) {
+    console.error('🔥 FULL ERROR:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
 });
+
 
 // -----------------------------------------------------------------------------
 // Find user by ID
@@ -178,10 +157,13 @@ router.post('/register', validate(registerSchema), async (req, res) => {
             message: 'New User registered!',
             userId: result.insertedId
         });
-    } catch (err) {
-        console.error('Create user error:', err);
-        res.status(400).json({ error: 'Invalid input' });
-    }
+} catch (err) {
+    console.error('Create user error:', err);
+    res.status(400).json({ 
+        error: 'Invalid input', 
+        details: err.message || err 
+    });
+}
 });
 
 // -----------------------------------------------------------------------------

@@ -15,18 +15,21 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('frontend/dist'));
 
+
 // API routes
 app.use('/api/users', usersRouter);
 app.use('/api/bugs', bugsRouter);
-app.use('/api/bugs/comments', commentsRouter);
-app.use('/api/bugs/tests', testRouter);
+app.use('/api/bugs', commentsRouter);
+app.use('/api/bugs', testRouter);
 
 // Health check
 app.get('/', (req, res) => res.send('Bugtracker API running'));
 
 // Use Cloud Run port
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+const HOST = 'localhost';
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Server running at: http://${HOST}:${PORT}`);
 });
 
