@@ -1,7 +1,7 @@
 // server.js
 import express from 'express';
 import cors from 'cors';
-
+import cookieParser from 'cookie-parser';
 import { usersRouter } from './routes/api/users.js';
 import { bugsRouter } from './routes/api/bugs.js';
 import { commentsRouter } from './routes/api/comments.js';
@@ -14,6 +14,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('frontend/dist'));
+app.use(cookieParser());
 
 
 // API routes

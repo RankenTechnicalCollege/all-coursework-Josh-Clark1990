@@ -5,6 +5,8 @@ import debug from 'debug';
 import bcrypt from 'bcryptjs';
 import { registerSchema, loginSchema, userIdSchema, userUpdateSchema } from '../../validation/userSchema.js';
 import { validate } from '../../middleware/validator.js';
+import jwt from 'jsonwebtoken';
+import { authenticateToken } from '../../middleware/auth.js';
 
 // Salt rounds for bcrypt
 const SALT_ROUNDS = 10;
@@ -22,7 +24,7 @@ const router = express.Router();
 // -----------------------------------------------------------------------------
 // Get all users
 // -----------------------------------------------------------------------------
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     console.log('Fetching all users');
     const db = await getDb();
@@ -85,7 +87,7 @@ router.get('/', async (req, res) => {
 // -----------------------------------------------------------------------------
 // Find user by ID
 // -----------------------------------------------------------------------------
-router.get('/:id', validate(userIdSchema), async (req, res) => {
+router.get('/:id', authenticateToken, validate(userIdSchema), async (req, res) => {
     try {
         const db = await getDb();
         const userId = req.params.id;
@@ -153,6 +155,17 @@ router.post('/register', validate(registerSchema), async (req, res) => {
         const result = await db.collection('Users').insertOne(userToInsert);
         debugCreate(`User created with ID: ${result.insertedId}`);
 
+        const editRecord = {
+            timestamp: new Date(),
+            col: "user",
+            op: "insert",
+            target: { userId: result.insertedId },
+            update: userToInsert,
+            };
+
+        await db.collection("edits").insertOne(editRecord);
+        debugCreate(`Edit log added for user ${result.insertedId}`);   
+
         res.status(201).json({
             message: 'New User registered!',
             userId: result.insertedId
@@ -194,6 +207,21 @@ router.post('/login', validate(loginSchema), async (req, res) => {
             return res.status(401).json({ error: 'Invalid login credentials' });
         }
 
+        //create JWT token
+        const token = jwt.sign(
+        { id: user._id, email: user.email },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN || "1h" }
+        );
+
+        // stores token in cookie
+        res.cookie("jwt", token, {
+        httpOnly: true,                                
+        secure: process.env.NODE_ENV === "production", 
+        sameSite: "strict",                            
+        maxAge: 60 * 60 * 1000   // 1 hour
+        });
+
         debugLogin('Login successful');
         res.status(200).json({
             message: `Login successful. Welcome back ${user.givenName}`,
@@ -206,8 +234,64 @@ router.post('/login', validate(loginSchema), async (req, res) => {
     }
 });
 
+
 // -----------------------------------------------------------------------------
-// Update user by ID
+// User updates their own info
+// -----------------------------------------------------------------------------
+router.patch('/me',authenticateToken, validate(userUpdateSchema, 'body'), async (req, res) => {
+    try{
+        const db = await getDb();
+        const userId = req.user.id;
+        const updates = req.body || {};
+        updates.lastUpdated = new Date();
+
+        // hash password if password is being updated
+        if (updates.password) {
+            updates.password = await bcrypt.hash(updates.password, SALT_ROUNDS);
+            debugUpdate('Password successfully hashed and updated');
+            delete updates.confirmPassword;
+        }
+
+        debugUpdate(`User ${userId} updating their info with: ${JSON.stringify(updates)}`);
+
+        await users.updateOne(
+            { _id: new ObjectId(userId) },
+            { $set: updates }
+        );
+
+        await db.collection('edits').insertOne({
+            timestamp: new Date(),
+            col: 'user',
+            op: 'update',
+            target: { userId: userId },
+            update: updates,
+            auth: req.user
+        });
+        
+        //issues new token 
+        const newToken = jwt.sign(
+            { id: req.user.id, email: req.user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRES_IN || "1h" }
+        );
+
+        res.cookie('jwt', newToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 60 * 60 * 1000 // 1 hour
+        });
+
+        res.status(200).json({ message: 'Your info has been successfully updated', lastUpdated: updates.lastUpdated });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal server error' })
+    }
+});
+
+
+// -----------------------------------------------------------------------------
+// Update user by ID (eventually changed for only admins)
 // -----------------------------------------------------------------------------
 router.patch('/:id', validate(userUpdateSchema, 'body'), validate(userIdSchema, 'params'), async (req, res) => {
     try {
