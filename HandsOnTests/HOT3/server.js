@@ -1,12 +1,13 @@
 import express from 'express';
 import debug from 'debug';
 import productsRouter from './routes/api/products.js';
+import cors from 'cors';
 
 const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-2
+app.use(cors());
 app.use('/api/products', productsRouter);
 
 const PORT = process.env.PORT || 2023;
