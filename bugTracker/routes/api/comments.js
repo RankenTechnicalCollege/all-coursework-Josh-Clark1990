@@ -138,8 +138,7 @@ router.get('/:bugId/comments', validate(bugIdSchema, 'params'), async (req, res)
         if (!bug || !bug.comments || bug.comments.length === 0) {
             return res.status(404).json({ error: 'Comments not found' });
         }
-
-        // ✅ Return all comments
+3
         res.status(200).json(bug.comments);
     } catch (err) {
         console.error('Error fetching comments:', err);

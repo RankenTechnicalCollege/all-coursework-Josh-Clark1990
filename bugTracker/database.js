@@ -26,7 +26,7 @@ export async function connectToDatabase() {
 
         const client = await MongoClient.connect(uri, {
             ssl: true,
-            tlsAllowInvalidCertificates: true, // bypass weird TLS issue on GCP
+            tlsAllowInvalidCertificates: true,
             serverSelectionTimeoutMS: 20000,
             retryWrites: true,
             w: 'majority'

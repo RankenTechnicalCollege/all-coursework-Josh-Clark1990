@@ -6,6 +6,9 @@ import { usersRouter } from './routes/api/users.js';
 import { bugsRouter } from './routes/api/bugs.js';
 import { commentsRouter } from './routes/api/comments.js';
 import { testRouter } from './routes/api/test.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 
@@ -27,10 +30,17 @@ app.use('/api/bugs', testRouter);
 app.get('/', (req, res) => res.send('Bugtracker API running'));
 
 // Use Cloud Run port
-const PORT = process.env.PORT || 5000;
-const HOST = 'localhost';
+const PORT = process.env.PORT || 8080;
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ Server running at: http://${HOST}:${PORT}`);
+app.listen(PORT, '0.0.0.0', async () => {
+    console.log(`✅ Server running on port ${PORT}`);
+
+    try {
+        const db = await connectToDatabase();
+        console.log('✅ Connected to MongoDB');
+    } catch (err) {
+        console.error('❌ MongoDB connection failed:', err);
+    }
 });
+import { connectToDatabase } from './database.js';
 
