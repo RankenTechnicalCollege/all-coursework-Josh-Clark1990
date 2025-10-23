@@ -1,7 +1,7 @@
 const validate = (schema, property = 'body') => (req, res, next) => {
   const options = {
     abortEarly: false,
-    allowUnknown: false,
+    allowUnknown: true,
     stripUnknown: true
   };
 

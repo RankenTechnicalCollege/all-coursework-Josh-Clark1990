@@ -8,18 +8,15 @@ const newId = (str) => ObjectId.createFromHexString(str);
 // Global variable storing the open connection, do not use it directly
 let _db;
 
-console.log("MONGO_URI:", process.env.MONGO_URI);
-console.log("MONGODB_URI:", process.env.MONGODB_URI);
-console.log("Using connection string:", process.env.MONGO_URI || process.env.MONGODB_URI);
 
 // Connect to database
 export async function connectToDatabase() {
     if (!_db) {
-        const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
+        const uri = process.env.MONGO_URI
         const dbName = process.env.MONGO_DB_NAME;
 
         if (!uri || !dbName) {
-            throw new Error('❌ Missing MONGO_URI/MONGODB_URI or MONGO_DB_NAME');
+            throw new Error('❌ Missing MONGO_URI or MONGO_DB_NAME');
         }
 
         console.log('🔌 Connecting to MongoDB with TLS fallback...');

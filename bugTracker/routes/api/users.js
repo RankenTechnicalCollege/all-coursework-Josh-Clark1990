@@ -6,7 +6,8 @@ import bcrypt from 'bcryptjs';
 import { registerSchema, loginSchema, userIdSchema, userUpdateSchema } from '../../validation/userSchema.js';
 import { validate } from '../../middleware/validator.js';
 import jwt from 'jsonwebtoken';
-import { authenticateToken } from '../../middleware/auth.js';
+import { getAuth } from '../../middleware/auth.js';
+import { isLoggedIn } from '../../middleware/isLoggedIn.js';
 
 // Salt rounds for bcrypt
 const SALT_ROUNDS = 10;
@@ -24,7 +25,7 @@ const router = express.Router();
 // -----------------------------------------------------------------------------
 // Get all users
 // -----------------------------------------------------------------------------
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', isLoggedIn, async (req, res) => {
   try {
     console.log('Fetching all users');
     const db = await getDb();
@@ -87,7 +88,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // -----------------------------------------------------------------------------
 // Find user by ID
 // -----------------------------------------------------------------------------
-router.get('/:id', authenticateToken, validate(userIdSchema), async (req, res) => {
+router.get('/:id', isLoggedIn, validate(userIdSchema), async (req, res) => {
     try {
         const db = await getDb();
         const userId = req.params.id;
@@ -182,80 +183,45 @@ router.post('/register', validate(registerSchema), async (req, res) => {
 // -----------------------------------------------------------------------------
 // Login
 // -----------------------------------------------------------------------------
-router.post('/login', validate(loginSchema), async (req, res) => {
+router.post('/login', validate(loginSchema, 'body'), async (req, res) => {
   try {
-    debugLogin('Login attempt');
+    const auth = getAuth(); 
+    console.log('Auth db type:', auth.database.db?.constructor.name);
+    const { email, password } = req.body;
 
-    const db = await getDb();
-    const { email, password } = req.body || {};
+    console.log('Attempting login with:', { email, password });
 
-    debugLogin(`Login attempt for email: ${email}`);
+    const authUser = await auth.api.signInEmail({
+      body: { email, password },
+    });
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Please enter your login credentials' });
-    }
+    if (!authUser || !authUser.session)
+      return res.status(401).json({ error: 'Invalid email or password' });
 
-    const user = await db.collection('Users').findOne({ email });
-
-    if (!user) {
-      debugLogin('User not found');
-      return res.status(401).json({ error: 'Invalid login credentials' });
-    }
-
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    debugLogin(`Password validation result: ${isValidPassword}`);
-
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid login credentials' });
-    }
-
-    // Ensure JWT_SECRET exists
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      throw new Error('JWT_SECRET is not defined');
-    }
-
-    // Create JWT token
-    const token = jwt.sign(
-      { id: user._id.toString(), email: user.email },
-      secret,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "1h" }
-    );
-
-    // Set cookie safely behind proxies
-    const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
-    res.cookie("jwt", token, {
+    // Set auth cookie
+    res.cookie('auth_token', authUser.session.token, {
       httpOnly: true,
-      secure: isSecure,
-      sameSite: "strict",
-      maxAge: 60 * 60 * 1000 // 1 hour
+      secure: req.secure || req.headers['x-forwarded-proto'] === 'https',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 1000,
     });
 
-    // Log the user payload for debugging
-    console.log('Login response payload:', {
-      userId: user._id?.toString(),
-      givenName: user.givenName,
-      lastUpdated: user.lastUpdated
-    });
-
-    // Send safe response
     res.status(200).json({
-      message: `Login successful. Welcome back ${user.givenName || user.email}`,
-      userId: user._id?.toString(),
-      lastUpdated: user.lastUpdated || new Date()
+      message: `Login successful. Welcome back ${authUser.user?.givenName}!`,
+      user: authUser.user,
     });
-
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
+
 
 
 // -----------------------------------------------------------------------------
 // User updates their own info
 // -----------------------------------------------------------------------------
-router.patch('/me',authenticateToken, validate(userUpdateSchema, 'body'), async (req, res) => {
+router.patch('/me', isLoggedIn, validate(userUpdateSchema, 'body'), async (req, res) => {
     try{
         const db = await getDb();
         const userId = req.user.id;
