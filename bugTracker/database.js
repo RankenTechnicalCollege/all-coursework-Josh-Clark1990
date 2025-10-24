@@ -7,7 +7,7 @@ const newId = (str) => ObjectId.createFromHexString(str);
 
 // Global variable storing the open connection, do not use it directly
 let _db;
-let _client; // FIXED: was _clinet
+let _client; 
 
 
 // Connect to database
@@ -81,4 +81,4 @@ export async function getClient() {
     }
     return _client;
 }
-export { getUsers, getBugs, getDb, newId };
+export { getUsers, getBugs, getDb, newId};
