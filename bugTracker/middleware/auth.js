@@ -1,49 +1,103 @@
-import { MongoClient } from 'mongodb';
-import { betterAuth } from 'better-auth';
-import { mongodbAdapter } from 'better-auth/adapters/mongodb';
 import dotenv from 'dotenv';
+import { getDb } from '../database.js';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 dotenv.config();
 
-let auth;
-
 export async function initAuth() {
-  // Connect MongoDB client
-  const client = new MongoClient(process.env.MONGO_URI);
-  await client.connect();
-  console.log('✅ Connected to MongoDB');
-
-  // Get the DB instance
-  const db = client.db(process.env.MONGO_DB_NAME);
-  console.log('MongoDB db object type:', db.constructor.name); // should print 'Db'
-
-  // Initialize Better Auth
-  auth = betterAuth({
-    emailAndPassword: {
-      enabled: true,
-      secret: process.env.BETTER_AUTH_SECRET,
-      tokenExpiresIn: 60 * 60 * 1000,
-    },
-    database: mongodbAdapter({ db }),
-    jwt: { secret: process.env.BETTER_AUTH_SECRET },
-  });
-
-  console.log('✅ Better Auth initialized');
+  // Just ensure DB is connected
+  const db = await getDb();
+  console.log('✅ Auth initialized with database:', db.databaseName);
 }
 
-export function getAuth() {
-  if (!auth) throw new Error('Auth not initialized. Call initAuth() first.');
-  return auth;
+// Login with email and password
+export async function loginWithEmail(email, password) {
+  try {
+    const db = await getDb();
+    
+    // Find user in Users collection
+    const user = await db.collection('Users').findOne({ email });
+    
+    if (!user) {
+      throw new Error('Invalid email or password');
+    }
+
+    // Verify password
+    const isValid = await bcrypt.compare(password, user.password);
+    
+    if (!isValid) {
+      throw new Error('Invalid email or password');
+    }
+
+    // Create JWT token
+    const token = jwt.sign(
+      {
+        id: user._id.toString(),
+        email: user.email,
+        role: user.role
+      },
+      process.env.BETTER_AUTH_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    return {
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        givenName: user.givenName,
+        familyName: user.familyName,
+        role: user.role
+      },
+      session: { token }
+    };
+  } catch (error) {
+    console.error('Login error:', error);
+    throw error;
+  }
+}
+
+export async function getAuth() {
+  return {};
 }
 
 // Middleware to protect routes
 export async function isLoggedIn(req, res, next) {
   try {
-    const user = await getAuth().getUserFromRequest(req);
-    if (!user) return res.status(401).json({ message: 'Please log in to continue' });
-    req.user = user;
+    const token = req.cookies.auth_token || req.cookies.jwt;
+    
+    if (!token) {
+      return res.status(401).json({ message: 'Please log in to continue' });
+    }
+
+    // Verify JWT
+    const decoded = jwt.verify(
+      token,
+      process.env.BETTER_AUTH_SECRET || process.env.JWT_SECRET
+    );
+
+    // Get user from database
+    const db = await getDb();
+    const user = await db.collection('Users').findOne(
+      { email: decoded.email },
+      { projection: { password: 0 } } // Don't include password
+    );
+
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    req.user = {
+      id: user._id.toString(),
+      email: user.email,
+      givenName: user.givenName,
+      familyName: user.familyName,
+      role: user.role
+    };
+    
     next();
   } catch (err) {
-    return res.status(401).json({ message: 'Invalid token, please log in again' });
+    console.error('Auth middleware error:', err);
+    res.status(401).json({ message: 'Invalid token, please log in again' });
   }
 }

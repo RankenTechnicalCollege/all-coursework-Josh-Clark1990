@@ -7,7 +7,8 @@ import { registerSchema, loginSchema, userIdSchema, userUpdateSchema } from '../
 import { validate } from '../../middleware/validator.js';
 import jwt from 'jsonwebtoken';
 import { getAuth } from '../../middleware/auth.js';
-import { isLoggedIn } from '../../middleware/isLoggedIn.js';
+import { isLoggedIn } from '../../middleware/auth.js';
+ 
 
 // Salt rounds for bcrypt
 const SALT_ROUNDS = 10;
@@ -183,20 +184,34 @@ router.post('/register', validate(registerSchema), async (req, res) => {
 // -----------------------------------------------------------------------------
 // Login
 // -----------------------------------------------------------------------------
+import { loginWithEmail } from '../../middleware/auth.js';
+
 router.post('/login', validate(loginSchema, 'body'), async (req, res) => {
   try {
-    const auth = getAuth(); 
-    console.log('Auth db type:', auth.database.db?.constructor.name);
     const { email, password } = req.body;
+    console.log('Login attempt for email:', email);
 
-    console.log('Attempting login with:', { email, password });
-
-    const authUser = await auth.api.signInEmail({
-      body: { email, password },
+    console.log('Getting auth instance...');
+    const auth = await getAuth();
+    console.log('Auth object structure:', {
+      hasHandlers: !!auth.handlers,
+      hasEmailAndPassword: !!auth.handlers?.emailAndPassword,
+      hasApi: !!auth.api,
+      database: !!auth.database
     });
 
-    if (!authUser || !authUser.session)
+    // Use universal login helper
+    console.log('Attempting login with email...');
+    const authUser = await loginWithEmail(auth, email, password);
+    console.log('Login response:', {
+      success: !!authUser,
+      hasSession: !!authUser?.session,
+      hasUser: !!authUser?.user
+    });
+
+    if (!authUser || !authUser.session) {
       return res.status(401).json({ error: 'Invalid email or password' });
+    }
 
     // Set auth cookie
     res.cookie('auth_token', authUser.session.token, {
@@ -207,14 +222,21 @@ router.post('/login', validate(loginSchema, 'body'), async (req, res) => {
     });
 
     res.status(200).json({
-      message: `Login successful. Welcome back ${authUser.user?.givenName}!`,
+      message: `Login successful. Welcome back ${authUser.user?.givenName || ''}!`,
       user: authUser.user,
     });
   } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ error: 'Internal server error', details: err.message });
+    console.error('Full login error:', err);
+    console.error('Error stack:', err.stack);
+    res.status(500).json({
+      error: 'Internal server error',
+      details: err.body || err.message || err,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 });
+
+
 
 
 
@@ -317,7 +339,7 @@ router.patch('/:id', validate(userUpdateSchema, 'body'), validate(userIdSchema, 
 // -----------------------------------------------------------------------------
 // Delete user by ID
 // -----------------------------------------------------------------------------
-router.delete('/:id', validate(userIdSchema), async (req, res) => {
+router.delete('/:id', isLoggedIn, validate(userIdSchema), async (req, res) => {
     try {
         const db = await getDb();
         const userId = req.params.id;

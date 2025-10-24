@@ -1,35 +1,36 @@
-import express from 'express';
-import { initAuth } from './middleware/auth.js';
+import dotenv from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import dotenv from 'dotenv';
+import { initAuth } from './middleware/auth.js';
+
+// Static imports for routers
+import { usersRouter } from './routes/api/users.js';
+import { bugsRouter } from './routes/api/bugs.js';
+import { commentsRouter } from './routes/api/comments.js';
+import { testRouter } from './routes/api/test.js';
 
 dotenv.config();
 
+import express from 'express'; // Only once at top level
+
 async function startServer() {
   try {
+    // Initialize BetterAuth + MongoDB first
     await initAuth();
     console.log('✅ Better Auth initialized and MongoDB connected');
   } catch (err) {
     console.error('❌ Failed to initialize auth or connect MongoDB:', err);
-    process.exit(1); // stop server if auth cannot initialize
+    process.exit(1);
   }
 
-    const app = express();
+  const app = express();
 
-    // Middleware
-    app.use(express.json());
-    app.use(cors());
-    app.use(express.urlencoded({ extended: true }));
-    app.use(express.static('frontend/dist'));
-    app.use(cookieParser());
-
-  const { usersRouter } = await import('./routes/api/users.js');
-  const { bugsRouter } = await import('./routes/api/bugs.js');
-  const { commentsRouter } = await import('./routes/api/comments.js');
-  const { testRouter } = await import('./routes/api/test.js');
-
-
+  // Middleware
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+  app.use(cors());
+  app.use(cookieParser());
+  app.use(express.static('frontend/dist'));
 
   // API routes
   app.use('/api/users', usersRouter);
@@ -40,13 +41,14 @@ async function startServer() {
   // Health check
   app.get('/', (req, res) => res.send('Bugtracker API running'));
 
-  // Use Cloud Run port
-  const PORT = process.env.PORT || 8080;
+  // Start server
+  const PORT = process.env.PORT || 5000;
   app.listen(PORT, '0.0.0.0', () => {
-      console.log(`✅ Server running on port ${PORT}`);
+    console.log(`✅ Server running on port ${PORT}`);
   });
 }
 
+// Start the server
 startServer().catch(err => {
   console.error('❌ Server failed to start:', err);
 });

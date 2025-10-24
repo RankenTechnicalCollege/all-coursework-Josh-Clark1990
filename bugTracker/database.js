@@ -7,6 +7,7 @@ const newId = (str) => ObjectId.createFromHexString(str);
 
 // Global variable storing the open connection, do not use it directly
 let _db;
+let _client; // FIXED: was _clinet
 
 
 // Connect to database
@@ -21,7 +22,7 @@ export async function connectToDatabase() {
 
         console.log('🔌 Connecting to MongoDB with TLS fallback...');
 
-        const client = await MongoClient.connect(uri, {
+        _client = await MongoClient.connect(uri, { // FIXED: was const client
             ssl: true,
             tlsAllowInvalidCertificates: true,
             serverSelectionTimeoutMS: 20000,
@@ -29,7 +30,7 @@ export async function connectToDatabase() {
             w: 'majority'
         });
 
-        _db = client.db(dbName);
+        _db = _client.db(dbName);
         console.log(`✅ Connected to MongoDB database: ${dbName}`);
     }
 
@@ -73,4 +74,11 @@ async function getDb() {
     return await connectToDatabase();
 }
 
+// Get the MongoDB client (needed for Better Auth)
+export async function getClient() {
+    if (!_client) {
+        await connectToDatabase();
+    }
+    return _client;
+}
 export { getUsers, getBugs, getDb, newId };
