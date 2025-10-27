@@ -177,6 +177,15 @@ router.post('', isAuthenticated, validate(bugCreateSchema, 'body'), async (req, 
 
     debugCreate(`Bug created with ID: ${newBug.id}`);
 
+                await db.collection('edits').insertOne({
+                timestamp: new Date(),
+                col: 'bug',
+                op: 'update',
+                target: { bugId: bugId },
+                update: updates,
+                auth: req.user
+            });
+
     res.status(201).json({
       message: 'New bug reported',
       bugId: newBug.id,
@@ -206,6 +215,16 @@ router.patch('/:bugId', isAuthenticated, validate(bugUpdateSchema, 'body'), vali
       message: 'Bug updated successfully',
       lastUpdated: updatedBug.lastUpdated
     });
+    
+      await db.collection('edits').insertOne({
+                timestamp: new Date(),
+                col: 'bug',
+                op: 'update',
+                target: { bugId: bugId },
+                update: updates,
+                auth: req.user
+            });
+
   } catch (err) {
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Bug not found' });
@@ -228,6 +247,15 @@ router.patch('/:bugId/classify', isAuthenticated, validate(bugClassifySchema, 'b
       where: { id: bugId },
       data: { classification }
     });
+
+            await db.collection('edits').insertOne({
+                timestamp: new Date(),
+                col: 'bug',
+                op: 'update',
+                target: { bugId: bugId },
+                update: updates,
+                auth: req.user
+            });
 
     res.status(200).json({
       message: 'Bug classification updated',

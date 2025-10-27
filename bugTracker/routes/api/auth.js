@@ -117,4 +117,29 @@ authRouter.post('/sign-in/email', validate(loginSchema), async (req, res) => {
   }
 });
 
+// -----------------------------------------------------------------------------
+// Logout
+// -----------------------------------------------------------------------------
+authRouter.post('/sign-out', async (req, res) => {
+  try {
+    await auth.api.signOut?.();
+
+    res.clearCookie('better-auth.session_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+    console.log(res.getHeaders());
+
+    res.status(200).json({ message: 'User signed out successfully' });
+  } catch (error) {
+    console.error('Sign-out error:', error);
+    res.status(500).json({ error: 'Failed to sign out' });
+  }
+});
+
+
+
+
 export default authRouter;
