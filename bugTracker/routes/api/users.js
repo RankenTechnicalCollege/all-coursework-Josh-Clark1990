@@ -2,16 +2,13 @@ import express from 'express';
 import { getDb } from '../../database.js';
 import { ObjectId } from 'mongodb';
 import debug from 'debug';
-import { registerSchema, loginSchema, userIdSchema, userUpdateSchema } from '../../validation/userSchema.js';
+import { userIdSchema, userUpdateSchema } from '../../validation/userSchema.js';
 import { validate } from '../../middleware/validator.js';
 import { auth } from '../../middleware/auth.js';
 import { isAuthenticated } from '../../middleware/isAuthenticated.js';
 
 // Debug namespaces
-const debugList = debug('users:list');
 const debugGet = debug('users:get');
-const debugCreate = debug('users:create');
-const debugLogin = debug('users:login');
 const debugUpdate = debug('users:update');
 const debugDelete = debug('users:delete');
 
@@ -24,7 +21,6 @@ router.get('/', isAuthenticated, async (req, res) => {
   try {
     console.log('Fetching all users');
     const db = await getDb();
-    const usersCollection = db.collection('user'); // Changed from 'Users' to 'user'
 
     const { keywords, role, minAge, maxAge, page, limit, sortBy, order } = req.query;
 
@@ -95,7 +91,7 @@ router.get('/:id', isAuthenticated, validate(userIdSchema, 'params'), async (req
 
         // Better Auth uses string IDs, not ObjectIds
         const user = await db.collection('user').findOne(
-            { id: userId }, // Changed from _id to id
+            { id: userId },
             {
                 projection: {
                     email: 1,
@@ -116,131 +112,6 @@ router.get('/:id', isAuthenticated, validate(userIdSchema, 'params'), async (req
     } catch (err) {
         console.error('Error fetching user:', err);
         res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// -----------------------------------------------------------------------------
-// Create new user (Register) - Using Better Auth
-// -----------------------------------------------------------------------------
-router.post('/register', validate(registerSchema), async (req, res) => {
-    try {
-        debugCreate('Attempting to create new user with Better Auth');
-        const { email, password, givenName, familyName, role } = req.body;
-
-        // Check if user already exists
-        const db = await getDb();
-        const existingUser = await db.collection('user').findOne({ email });
-        if (existingUser) {
-            return res.status(409).json({ error: 'Email already registered' });
-        }
-
-        // Use Better Auth to create the user
-        const authUser = await auth.api.signUpEmail({
-            body: {
-                email,
-                password,
-                name: `${givenName} ${familyName}`,
-            }
-        });
-
-        if (!authUser || !authUser.user) {
-            return res.status(400).json({ error: 'Failed to create user' });
-        }
-
-        debugCreate(`Better Auth created user with ID: ${authUser.user.id}`);
-
-        // Update the user with additional custom fields
-        await db.collection('user').updateOne(
-            { id: authUser.user.id },
-            { 
-                $set: {
-                    givenName,
-                    familyName,
-                    role: role || 'developer',
-                    createdBugs: [],
-                    assignedBugs: [],
-                    createdAt: new Date(),
-                    lastUpdated: new Date()
-                }
-            }
-        );
-
-        debugCreate(`Added custom fields to user ${authUser.user.id}`);
-
-        // Log the edit
-        const editRecord = {
-            timestamp: new Date(),
-            col: "user",
-            op: "insert",
-            target: { userId: authUser.user.id },
-            update: { email, givenName, familyName, role },
-        };
-        await db.collection("edits").insertOne(editRecord);
-        debugCreate(`Edit log added for user ${authUser.user.id}`);
-
-        res.status(201).json({
-            message: 'New User registered!',
-            userId: authUser.user.id
-        });
-    } catch (err) {
-        console.error('Create user error:', err);
-        res.status(400).json({ 
-            error: 'Invalid input', 
-            details: err.message || err 
-        });
-    }
-});
-
-// -----------------------------------------------------------------------------
-// Login - Using Better Auth
-// -----------------------------------------------------------------------------
-router.post('/login', validate(loginSchema, 'body'), async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        debugLogin(`Login attempt for email: ${email}`);
-
-        // Use Better Auth to sign in
-        const authResponse = await auth.api.signInEmail({
-            body: { email, password }
-        });
-
-        debugLogin('Better Auth sign in successful');
-
-        if (!authResponse || !authResponse.session) {
-            return res.status(401).json({ error: 'Invalid email or password' });
-        }
-
-        // Set the auth cookie
-        res.cookie('better-auth.session_token', authResponse.session.token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 60 * 60 * 1000, // 1 hour
-        });
-
-        // Fetch additional user info from your custom fields
-        const db = await getDb();
-        const user = await db.collection('user').findOne(
-            { id: authResponse.user.id },
-            { projection: { givenName: 1, familyName: 1, role: 1, createdBugs: 1, assignedBugs: 1 } }
-        );
-
-        debugLogin(`User ${authResponse.user.id} logged in successfully`);
-
-        res.status(200).json({
-            message: `Login successful. Welcome back ${user?.givenName || authResponse.user.name}!`,
-            user: {
-                ...authResponse.user,
-                ...user
-            },
-        });
-
-    } catch (err) {
-        console.error('Login error:', err);
-        debugLogin(`Login failed: ${err.message}`);
-        res.status(401).json({
-            error: 'Invalid email or password'
-        });
     }
 });
 
@@ -299,7 +170,7 @@ router.patch('/me', isAuthenticated, validate(userUpdateSchema, 'body'), async (
 });
 
 // -----------------------------------------------------------------------------
-// Update user by ID (admin function)
+// Update user by ID (technical manager)
 // -----------------------------------------------------------------------------
 router.patch('/:id', isAuthenticated, validate(userUpdateSchema, 'body'), validate(userIdSchema, 'params'), async (req, res) => {
     try {
@@ -317,7 +188,7 @@ router.patch('/:id', isAuthenticated, validate(userUpdateSchema, 'body'), valida
         }
 
         const result = await db.collection('user').updateOne(
-            { id: userId }, // Changed from _id to id
+            { id: userId }, 
             { $set: updates }
         );
 

@@ -28,7 +28,7 @@ const router = express.Router();
 // -----------------------------------------------------------------------------
 // Get all bugs
 // -----------------------------------------------------------------------------
-router.get('/', async (req, res) => {
+router.get('/', isAuthenticated, async (req, res) => {
   try {
     debugList('Fetching all bugs');
     
@@ -121,7 +121,7 @@ router.get('/', async (req, res) => {
 // -----------------------------------------------------------------------------
 // Get bug by ID
 // -----------------------------------------------------------------------------
-router.get('/:bugId', validate(bugIdSchema, 'params'), async (req, res) => {
+router.get('/:bugId', isAuthenticated, validate(bugIdSchema, 'params'), async (req, res) => {
   try {
     const { bugId } = req.params;
     debugGet(`Fetching bug with ID: ${bugId}`);
@@ -159,7 +159,7 @@ router.get('/:bugId', validate(bugIdSchema, 'params'), async (req, res) => {
 // -----------------------------------------------------------------------------
 // Create new bug
 // -----------------------------------------------------------------------------
-router.post('/submit', validate(bugCreateSchema, 'body'), async (req, res) => {
+router.post('', isAuthenticated, validate(bugCreateSchema, 'body'), async (req, res) => {
   try {
     const { title, description, stepsToReproduce, authorOfBug } = req.body;
     debugCreate('Creating new bug');
@@ -191,7 +191,7 @@ router.post('/submit', validate(bugCreateSchema, 'body'), async (req, res) => {
 // -----------------------------------------------------------------------------
 // Update bug by ID
 // -----------------------------------------------------------------------------
-router.patch('/:bugId', validate(bugUpdateSchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
+router.patch('/:bugId', isAuthenticated, validate(bugUpdateSchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
   try {
     const { bugId } = req.params;
     const updates = req.body || {};
@@ -218,7 +218,7 @@ router.patch('/:bugId', validate(bugUpdateSchema, 'body'), validate(bugIdSchema,
 // -----------------------------------------------------------------------------
 // Classify bug by ID
 // -----------------------------------------------------------------------------
-router.patch('/:bugId/classify', validate(bugClassifySchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
+router.patch('/:bugId/classify', isAuthenticated, validate(bugClassifySchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
   try {
     const { bugId } = req.params;
     const { classification } = req.body;
@@ -245,7 +245,7 @@ router.patch('/:bugId/classify', validate(bugClassifySchema, 'body'), validate(b
 // -----------------------------------------------------------------------------
 // Assign a user to a bug
 // -----------------------------------------------------------------------------
-router.patch('/:bugId/assign', validate(bugAssignSchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
+router.patch('/:bugId/assign', isAuthenticated, validate(bugAssignSchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
   try {
     const { bugId } = req.params;
     const { user_id } = req.body;
@@ -305,7 +305,7 @@ router.patch('/:bugId/assign', validate(bugAssignSchema, 'body'), validate(bugId
 // -----------------------------------------------------------------------------
 // Close a bug
 // -----------------------------------------------------------------------------
-router.patch('/:bugId/close', validate(bugCloseSchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
+router.patch('/:bugId/close', isAuthenticated, validate(bugCloseSchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
   try {
     const { bugId } = req.params;
     debugClose(`Closing bug ${bugId}`);

@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import debug from 'debug';
 import { bugCommentSchema, bugIdSchema, bugCommentSearchSchema } from '../../validation/bugSchema.js';
 import { validate } from '../../middleware/validator.js';
+import { isAuthenticated } from '../../middleware/isAuthenticated.js';
 
 const prisma = new PrismaClient();
 const debugGet = debug('comments:get');
@@ -15,6 +16,7 @@ const router = express.Router();
 // -----------------------------------------------------------------------------
 router.post(
     '/:bugId/comments',
+    isAuthenticated,
     validate(bugCommentSchema, 'body'),
     validate(bugIdSchema, 'params'),
     async (req, res) => {
@@ -81,6 +83,7 @@ router.post(
 // -----------------------------------------------------------------------------
 router.get(
     '/:bugId/comments/:commentId',
+    isAuthenticated,
     validate(bugCommentSearchSchema, 'params'),
     async (req, res) => {
         try {
@@ -110,7 +113,7 @@ router.get(
 // -----------------------------------------------------------------------------
 // Find all comments on a specific bug id
 // -----------------------------------------------------------------------------
-router.get('/:bugId/comments', validate(bugIdSchema, 'params'), async (req, res) => {
+router.get('/:bugId/comments', isAuthenticated, validate(bugIdSchema, 'params'), async (req, res) => {
     try {
         const { bugId } = req.params;
 
