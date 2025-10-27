@@ -139,7 +139,4 @@ authRouter.post('/sign-out', async (req, res) => {
   }
 });
 
-
-
-
 export default authRouter;
