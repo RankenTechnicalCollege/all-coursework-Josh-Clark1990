@@ -1,39 +1,28 @@
 import { betterAuth } from 'better-auth';
-import { mongodbAdapter } from 'better-auth/adapters/mongodb';
-import { getClient } from '../database.js';
+import { prismaAdapter } from 'better-auth/adapters/prisma';
+import { PrismaClient } from '@prisma/client';
 
-const client = await getClient();
+const prisma = new PrismaClient();
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
   trustedOrigins: [
     "http://localhost:8080",
-    "https://bugtracker-1019735204077.us-central1.run.app"
+    "http://localhost:5000",
   ],
-  database: mongodbAdapter({
-    client,
-    dbName: process.env.MONGO_DB_NAME
+  database: prismaAdapter(prisma, {
+    provider: "mongodb",
+    usePlural: false,
   }),
   emailAndPassword: {
     enabled: true,
+    minPasswordLength: 6,
   },
   session: {
     cookieCache: true,
-    maxAge: 60 * 60 * 1000, // 1 hour
+    maxAge: 60 * 60 * 1000,
   },
-  user: {
-    role: {
-      type: "object",
-      required: false,
-    },
-    profile: {
-      type: "object",
-      required: false,
-    },
-    createdAt: {
-      type: "string",
-      required: false,
-    },
+  advanced: {
+    disableCSRFCheck: true,
   },
 });
-

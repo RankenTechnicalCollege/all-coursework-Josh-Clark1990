@@ -26,7 +26,7 @@ import express from 'express';
   }));
   app.use(cookieParser());
   app.use(express.static('frontend/dist'));
-  app.all('/api/betterAuth/splat', toNodeHandler(auth));
+  app.all('/api/auth/*', toNodeHandler(auth));
 
   // API routes
   app.use('/api/auth', authRouter);

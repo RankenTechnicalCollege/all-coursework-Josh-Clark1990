@@ -164,7 +164,7 @@ declare function getJwtToken(ctx: GenericEndpointContext, options?: JwtOptions):
 declare function generateExportedKeyPair(options?: JwtOptions): Promise<{
     publicWebKey: jose.JWK;
     privateWebKey: jose.JWK;
-    alg: "EdDSA" | "ES256" | "ES512" | "PS256" | "RS256";
+    alg: "RS256" | "EdDSA" | "ES256" | "ES512" | "PS256";
     cfg: {
         crv?: "Ed25519";
     } | {

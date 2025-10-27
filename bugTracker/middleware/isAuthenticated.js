@@ -10,7 +10,7 @@ export async function isAuthenticated(req, res, next){
       })
     }
 
-    req.users = session.user;
+    req.user = session.user;
     req.session = session.session;
     next();
   }catch(err){
@@ -18,6 +18,5 @@ export async function isAuthenticated(req, res, next){
       error: 'Unauthorized',
       message: "Invalid or expired session"
     })
-    
   }
 }

@@ -2,7 +2,7 @@ import Joi from 'joi';
 
 const registerSchema = Joi.object({
     email: Joi.string().email().required(),
-    password: Joi.string().min(4).max(20).required(),
+    password: Joi.string().min(6).max(20).required(), // Changed min to 6 to match Better Auth
     confirmPassword: Joi.string().valid(Joi.ref('password')).required(),
     role: Joi.string()
         .valid(
@@ -21,15 +21,15 @@ const registerSchema = Joi.object({
 
 const loginSchema = Joi.object({
     email: Joi.string().email().required(),
-    password: Joi.string().min(4).max(20).required()
+    password: Joi.string().min(6).max(20).required() // Changed min to 6
 });
 
 const userIdSchema = Joi.object({
-    id: Joi.string().length(24).hex().required()
+    id: Joi.string().uuid().required() // Changed from hex to uuid
 });
 
 const userUpdateSchema = Joi.object({
-    password: Joi.string().min(4).max(20).optional(),
+    password: Joi.string().min(6).max(20).optional(), // Changed min to 6
     confirmPassword: Joi.any()
         .valid(Joi.ref('password'))
         .when('password', {

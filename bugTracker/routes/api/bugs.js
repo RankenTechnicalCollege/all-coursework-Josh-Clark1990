@@ -1,6 +1,5 @@
 import express from 'express';
-import { getDb } from '../../database.js';
-import { ObjectId } from 'mongodb';
+import { PrismaClient } from '@prisma/client';
 import debug from 'debug';
 import {
     bugCreateSchema,
@@ -11,9 +10,18 @@ import {
     bugCloseSchema
 } from '../../validation/bugSchema.js';
 import { validate } from '../../middleware/validator.js';
+import { isAuthenticated } from '../../middleware/isAuthenticated.js';
+
+const prisma = new PrismaClient();
 
 // Debug namespaces
 const debugList = debug('bugs:list');
+const debugGet = debug('bugs:get');
+const debugCreate = debug('bugs:create');
+const debugUpdate = debug('bugs:update');
+const debugClassify = debug('bugs:classify');
+const debugAssign = debug('bugs:assign');
+const debugClose = debug('bugs:close');
 
 const router = express.Router();
 
@@ -22,10 +30,8 @@ const router = express.Router();
 // -----------------------------------------------------------------------------
 router.get('/', async (req, res) => {
   try {
-    const db = await getDb();
     debugList('Fetching all bugs');
-    const bugsCollection = db.collection('Bugs');
-
+    
     const {
       keywords,
       classification,
@@ -40,52 +46,70 @@ router.get('/', async (req, res) => {
 
     // Pagination
     const pageNum = parseInt(page) || 1;
-    const limitNum = parseInt(limit) || 0; // 0 = no limit
-    const skip = limitNum > 0 ? (pageNum - 1) * limitNum : 0;
+    const limitNum = parseInt(limit) || 10;
+    const skip = (pageNum - 1) * limitNum;
 
-    // Filter
-    const filter = {};
-    if (keywords) filter.$text = { $search: keywords };
-    if (classification) filter.classification = classification;
-    if (closed !== undefined) filter.closed = closed === 'true';
+    // Build where clause
+    const where = {};
+    
+    if (keywords) {
+      where.OR = [
+        { title: { contains: keywords, mode: 'insensitive' } },
+        { description: { contains: keywords, mode: 'insensitive' } }
+      ];
+    }
+    
+    if (classification) {
+      where.classification = classification;
+    }
+    
+    if (closed !== undefined) {
+      where.closed = closed === 'true';
+    }
 
     if (minAge || maxAge) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const dateFilter = {};
-      if (maxAge) dateFilter.$gte = new Date(today.getTime() - maxAge * 24 * 60 * 60 * 1000);
-      if (minAge) dateFilter.$lte = new Date(today.getTime() - minAge * 24 * 60 * 60 * 1000);
-      filter.createdAt = dateFilter;
+      
+      where.createdAt = {};
+      if (maxAge) {
+        where.createdAt.gte = new Date(today.getTime() - maxAge * 24 * 60 * 60 * 1000);
+      }
+      if (minAge) {
+        where.createdAt.lte = new Date(today.getTime() - minAge * 24 * 60 * 60 * 1000);
+      }
     }
 
     // Sorting
     const allowedSortFields = ['classification', 'title', 'assignedUserName', 'authorOfBug', 'statusLabel', 'createdAt'];
-    const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'classification';
-    const sortDirection = order === 'desc' ? -1 : 1;
-    const sort = { [sortField]: sortDirection };
+    const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    const sortDirection = order === 'desc' ? 'desc' : 'asc';
+    const orderBy = { [sortField]: sortDirection };
 
     // Query
-    const bugs = await bugsCollection
-      .find(filter, {
-        projection: {
-          title: 1,
-          description: 1,
-          stepsToReproduce: 1,
-          statusLabel: 1,
-          classification: 1,
-          assignedUserName: 1,
-          authorOfBug: 1,
-          createdAt: 1,
-          lastUpdated: 1,
-          closed: 1
-        }
-      })
-      .sort(sort)
-      .skip(skip)
-      .limit(limitNum)
-      .toArray();
+    const bugs = await prisma.bug.findMany({
+      where,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        stepsToReproduce: true,
+        statusLabel: true,
+        classification: true,
+        assignedUserName: true,
+        authorOfBug: true,
+        createdAt: true,
+        lastUpdated: true,
+        closed: true
+      },
+      orderBy,
+      skip,
+      take: limitNum
+    });
 
-    if (!bugs.length) return res.status(404).json({ error: 'No bugs found' });
+    if (!bugs.length) {
+      return res.status(404).json({ error: 'No bugs found' });
+    }
 
     res.status(200).json(bugs);
   } catch (err) {
@@ -98,188 +122,215 @@ router.get('/', async (req, res) => {
 // Get bug by ID
 // -----------------------------------------------------------------------------
 router.get('/:bugId', validate(bugIdSchema, 'params'), async (req, res) => {
-    try {
-        const db = await getDb();
-        const { bugId } = req.params;
+  try {
+    const { bugId } = req.params;
+    debugGet(`Fetching bug with ID: ${bugId}`);
 
-        if (!ObjectId.isValid(bugId)) return res.status(400).json({ error: 'Invalid bug id' });
+    const bug = await prisma.bug.findUnique({
+      where: { id: bugId },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        stepsToReproduce: true,
+        authorOfBug: true,
+        statusLabel: true,
+        classification: true,
+        createdAt: true,
+        lastUpdated: true,
+        assignedUser: true,
+        assignedUserName: true,
+        closed: true,
+        closedDate: true
+      }
+    });
 
-        const bug = await db.collection('Bugs').findOne(
-            { _id: new ObjectId(bugId) },
-            {
-                projection: {
-                    title: 1,
-                    description: 1,
-                    stepsToReproduce: 1,
-                    authorOfBug: 1,
-                    statusLabel: 1,
-                    classification: 1,
-                    createdAt: 1,
-                    lastUpdated: 1,
-                    assignedUser: 1,
-                    assignedUserName: 1
-                }
-            }
-        );
-
-        if (!bug) return res.status(404).json({ error: 'Bug not found' });
-
-        res.status(200).json(bug);
-    } catch (err) {
-        console.error('Error fetching bug:', err);
-        res.status(500).json({ error: 'Internal server error', details: err.message });
+    if (!bug) {
+      return res.status(404).json({ error: 'Bug not found' });
     }
+
+    res.status(200).json(bug);
+  } catch (err) {
+    console.error('Error fetching bug:', err);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
 });
 
 // -----------------------------------------------------------------------------
 // Create new bug
 // -----------------------------------------------------------------------------
 router.post('/submit', validate(bugCreateSchema, 'body'), async (req, res) => {
-    try {
-        const db = await getDb();
-        const { title, description, stepsToReproduce, authorOfBug } = req.body;
+  try {
+    const { title, description, stepsToReproduce, authorOfBug } = req.body;
+    debugCreate('Creating new bug');
 
-        const newBug = {
-            title,
-            description,
-            stepsToReproduce,
-            authorOfBug,
-            status: false,
-            statusLabel: 'open',
-            creationDate: new Date(),
-            lastUpdated: new Date()
-        };
+    const newBug = await prisma.bug.create({
+      data: {
+        title,
+        description,
+        stepsToReproduce,
+        authorOfBug,
+        status: false,
+        statusLabel: 'open'
+      }
+    });
 
-        const result = await db.collection('Bugs').insertOne(newBug);
+    debugCreate(`Bug created with ID: ${newBug.id}`);
 
-        res.status(201).json({
-            message: 'New bug reported',
-            bugId: result.insertedId,
-            creationDate: newBug.creationDate
-        });
-    } catch (err) {
-        console.error('Error creating bug:', err);
-        res.status(500).json({ error: 'Failed to create bug', details: err.message });
-    }
+    res.status(201).json({
+      message: 'New bug reported',
+      bugId: newBug.id,
+      creationDate: newBug.createdAt
+    });
+  } catch (err) {
+    console.error('Error creating bug:', err);
+    res.status(500).json({ error: 'Failed to create bug', details: err.message });
+  }
 });
 
 // -----------------------------------------------------------------------------
 // Update bug by ID
 // -----------------------------------------------------------------------------
 router.patch('/:bugId', validate(bugUpdateSchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
-    try {
-        const db = await getDb();
-        const { bugId } = req.params;
-        const updates = req.body || {};
-        updates.lastUpdated = new Date();
+  try {
+    const { bugId } = req.params;
+    const updates = req.body || {};
+    debugUpdate(`Updating bug ${bugId}`);
 
-        if (!ObjectId.isValid(bugId)) return res.status(400).json({ error: 'Invalid bug id' });
+    const updatedBug = await prisma.bug.update({
+      where: { id: bugId },
+      data: updates
+    });
 
-        const result = await db.collection('Bugs').updateOne(
-            { _id: new ObjectId(bugId) },
-            { $set: updates }
-        );
-
-        if (!result.matchedCount) return res.status(404).json({ error: 'Bug not found' });
-
-        res.status(200).json({ message: 'Bug updated successfully', lastUpdated: updates.lastUpdated });
-    } catch (err) {
-        console.error('Update bug error:', err);
-        res.status(500).json({ error: 'Invalid input', details: err.message });
+    res.status(200).json({
+      message: 'Bug updated successfully',
+      lastUpdated: updatedBug.lastUpdated
+    });
+  } catch (err) {
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'Bug not found' });
     }
+    console.error('Update bug error:', err);
+    res.status(500).json({ error: 'Invalid input', details: err.message });
+  }
 });
 
 // -----------------------------------------------------------------------------
 // Classify bug by ID
 // -----------------------------------------------------------------------------
 router.patch('/:bugId/classify', validate(bugClassifySchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
-    try {
-        const db = await getDb();
-        const { bugId } = req.params;
-        const { classification } = req.body;
+  try {
+    const { bugId } = req.params;
+    const { classification } = req.body;
+    debugClassify(`Classifying bug ${bugId} as ${classification}`);
 
-        if (!ObjectId.isValid(bugId)) return res.status(400).json({ error: 'Invalid bug id' });
+    const updatedBug = await prisma.bug.update({
+      where: { id: bugId },
+      data: { classification }
+    });
 
-        const result = await db.collection('Bugs').updateOne(
-            { _id: new ObjectId(bugId) },
-            { $set: { classification, lastUpdated: new Date() } }
-        );
-
-        if (!result.matchedCount) return res.status(404).json({ error: 'Bug not found' });
-
-        res.status(200).json({ message: 'Bug classification updated', lastUpdated: new Date() });
-    } catch (err) {
-        console.error('Classify bug error:', err);
-        res.status(500).json({ error: 'Invalid input', details: err.message });
+    res.status(200).json({
+      message: 'Bug classification updated',
+      lastUpdated: updatedBug.lastUpdated
+    });
+  } catch (err) {
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'Bug not found' });
     }
+    console.error('Classify bug error:', err);
+    res.status(500).json({ error: 'Invalid input', details: err.message });
+  }
 });
 
 // -----------------------------------------------------------------------------
 // Assign a user to a bug
 // -----------------------------------------------------------------------------
 router.patch('/:bugId/assign', validate(bugAssignSchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
-    try {
-        const db = await getDb();
-        const { bugId } = req.params;
-        const { user_id } = req.body;
+  try {
+    const { bugId } = req.params;
+    const { user_id } = req.body;
+    debugAssign(`Assigning bug ${bugId} to user ${user_id}`);
 
-        if (!ObjectId.isValid(bugId) || !ObjectId.isValid(user_id))
-            return res.status(400).json({ error: 'Invalid bug or user id' });
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { id: user_id },
+      select: { givenName: true, familyName: true, name: true }
+    });
 
-        const bugObjectId = new ObjectId(bugId);
-        const userObjectId = new ObjectId(user_id);
-
-        const user = await db.collection('Users').findOne({ _id: userObjectId });
-        if (!user) return res.status(404).json({ error: 'User not found' });
-
-        const userFullName = `${user.givenName} ${user.familyName || ''}`.trim();
-
-        const result = await db.collection('Bugs').updateOne(
-            { _id: bugObjectId },
-            { $set: { assignedUser: userObjectId, assignedUserName: userFullName, lastUpdated: new Date() } }
-        );
-
-        if (!result.matchedCount) return res.status(404).json({ error: 'Bug not found' });
-
-        await db.collection('Users').updateOne(
-            { _id: userObjectId },
-            { $addToSet: { assignedBugs: bugObjectId } }
-        );
-
-        res.status(200).json({
-            message: `Bug assigned to ${userFullName}`,
-            bug: { id: bugId, assignedUser: userObjectId, assignedUserName: userFullName, lastUpdated: new Date() }
-        });
-    } catch (err) {
-        console.error('Assign bug error:', err);
-        res.status(500).json({ error: 'Failed to assign bug', details: err.message });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
     }
+
+    const userFullName = user.givenName && user.familyName 
+      ? `${user.givenName} ${user.familyName}`.trim()
+      : user.name || 'Unknown';
+
+    // Update bug with assigned user
+    const updatedBug = await prisma.bug.update({
+      where: { id: bugId },
+      data: {
+        assignedUser: user_id,
+        assignedUserName: userFullName
+      }
+    });
+
+    // Update user's assignedBugs array
+    await prisma.user.update({
+      where: { id: user_id },
+      data: {
+        assignedBugs: {
+          push: bugId
+        }
+      }
+    });
+
+    res.status(200).json({
+      message: `Bug assigned to ${userFullName}`,
+      bug: {
+        id: updatedBug.id,
+        assignedUser: user_id,
+        assignedUserName: userFullName,
+        lastUpdated: updatedBug.lastUpdated
+      }
+    });
+  } catch (err) {
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'Bug not found' });
+    }
+    console.error('Assign bug error:', err);
+    res.status(500).json({ error: 'Failed to assign bug', details: err.message });
+  }
 });
 
 // -----------------------------------------------------------------------------
 // Close a bug
 // -----------------------------------------------------------------------------
 router.patch('/:bugId/close', validate(bugCloseSchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
-    try {
-        const db = await getDb();
-        const { bugId } = req.params;
+  try {
+    const { bugId } = req.params;
+    debugClose(`Closing bug ${bugId}`);
 
-        if (!ObjectId.isValid(bugId)) return res.status(400).json({ error: 'Invalid bug id' });
+    const updatedBug = await prisma.bug.update({
+      where: { id: bugId },
+      data: {
+        status: true,
+        statusLabel: 'closed',
+        closed: true,
+        closedDate: new Date()
+      }
+    });
 
-        const updates = { status: true, statusLabel: 'closed', lastUpdated: new Date(), closedDate: new Date() };
-
-        const result = await db.collection('Bugs').updateOne(
-            { _id: new ObjectId(bugId) },
-            { $set: updates }
-        );
-
-        if (!result.matchedCount) return res.status(404).json({ error: 'Bug not found' });
-
-        res.status(200).json({ message: 'Bug closed', lastUpdated: updates.lastUpdated });
-    } catch (err) {
-        console.error('Close bug error:', err);
-        res.status(500).json({ error: 'Invalid input', details: err.message });
+    res.status(200).json({
+      message: 'Bug closed',
+      lastUpdated: updatedBug.lastUpdated
+    });
+  } catch (err) {
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'Bug not found' });
     }
+    console.error('Close bug error:', err);
+    res.status(500).json({ error: 'Invalid input', details: err.message });
+  }
 });
 
 export { router as bugsRouter };

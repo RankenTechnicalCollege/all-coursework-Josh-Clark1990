@@ -1,11 +1,12 @@
 import express from 'express';
-import { getDb } from '../../database.js';
-import { ObjectId } from 'mongodb';
+import { PrismaClient } from '@prisma/client';
 import debug from 'debug';
 import { bugCommentSchema, bugIdSchema, bugCommentSearchSchema } from '../../validation/bugSchema.js';
 import { validate } from '../../middleware/validator.js';
 
+const prisma = new PrismaClient();
 const debugGet = debug('comments:get');
+const debugPost = debug('comments:post');
 
 const router = express.Router();
 
@@ -18,54 +19,51 @@ router.post(
     validate(bugIdSchema, 'params'),
     async (req, res) => {
         try {
-            const db = await getDb();
             const { bugId } = req.params;
             const { user_id, text } = req.body;
 
-            const bugObjectId =
-                typeof bugId === 'string' && ObjectId.isValid(bugId)
-                    ? new ObjectId(bugId)
-                    : bugId instanceof ObjectId
-                    ? bugId
-                    : null;
+            debugPost(`Adding comment to bug ${bugId}`);
 
-            const userObjectId =
-                typeof user_id === 'string' && ObjectId.isValid(user_id)
-                    ? new ObjectId(user_id)
-                    : user_id instanceof ObjectId
-                    ? user_id
-                    : null;
+            // Check if bug exists
+            const bug = await prisma.bug.findUnique({
+                where: { id: bugId }
+            });
 
-            if (!bugObjectId || !userObjectId) {
-                return res.status(400).json({ error: 'Invalid bug or user id' });
+            if (!bug) {
+                return res.status(404).json({ error: `Bug ${bugId} not found` });
             }
 
-            const user = await db.collection('Users').findOne({ _id: userObjectId });
+            // Check if user exists
+            const user = await prisma.user.findUnique({
+                where: { id: user_id },
+                select: { id: true, name: true, givenName: true, familyName: true }
+            });
+
             if (!user) {
                 return res.status(404).json({ error: `User ${user_id} not found` });
             }
 
-            const comment = {
-                _id: new ObjectId(),
-                text,
-                user: {
-                    id: user._id,
-                    name: user.fullName
-                },
-                date: new Date()
-            };
+            const authorName = user.givenName && user.familyName
+                ? `${user.givenName} ${user.familyName}`.trim()
+                : user.name || 'Unknown';
 
-            const bugResult = await db.collection('Bugs').updateOne(
-                { _id: bugObjectId },
-                {
-                    $push: { comments: comment },
-                    $set: { lastUpdated: new Date() }
+            // Create comment
+            const comment = await prisma.comment.create({
+                data: {
+                    bugId,
+                    text,
+                    author: user_id,
+                    authorName
                 }
-            );
+            });
 
-            if (bugResult.matchedCount === 0) {
-                return res.status(404).json({ error: `Bug ${bugId} not found` });
-            }
+            // Update bug's lastUpdated
+            await prisma.bug.update({
+                where: { id: bugId },
+                data: { lastUpdated: new Date() }
+            });
+
+            debugPost(`Comment added successfully to bug ${bugId}`);
 
             return res.status(200).json({
                 message: 'Comment successfully added',
@@ -73,7 +71,7 @@ router.post(
             });
         } catch (err) {
             console.error('Comment bug error:', err);
-            return res.status(500).json({ error: 'Internal server error' });
+            return res.status(500).json({ error: 'Internal server error', details: err.message });
         }
     }
 );
@@ -86,27 +84,20 @@ router.get(
     validate(bugCommentSearchSchema, 'params'),
     async (req, res) => {
         try {
-            const db = await getDb();
             const { bugId, commentId } = req.params;
 
             debugGet(`Fetching comment ${commentId} from bug ${bugId}`);
 
-            if (!ObjectId.isValid(bugId) || !ObjectId.isValid(commentId)) {
-                return res.status(400).json({ error: 'Invalid comment or bug id' });
-            }
+            const comment = await prisma.comment.findFirst({
+                where: {
+                    id: commentId,
+                    bugId: bugId
+                }
+            });
 
-            const bug = await db.collection('Bugs').findOne(
-                { _id: new ObjectId(bugId) },
-                { projection: { comments: 1 } }
-            );
-
-            if (!bug || !bug.comments || bug.comments.length === 0) {
+            if (!comment) {
                 return res.status(404).json({ error: 'Comment not found' });
             }
-
-            const comment = bug.comments.find((c) => c._id.toString() === commentId);
-
-            if (!comment) return res.status(404).json({ error: 'Comment not found' });
 
             res.status(200).json(comment);
         } catch (err) {
@@ -121,25 +112,20 @@ router.get(
 // -----------------------------------------------------------------------------
 router.get('/:bugId/comments', validate(bugIdSchema, 'params'), async (req, res) => {
     try {
-        const db = await getDb();
         const { bugId } = req.params;
 
         debugGet(`Fetching all comments from bug: ${bugId}`);
 
-        if (!ObjectId.isValid(bugId)) {
-            return res.status(400).json({ error: 'Invalid bug Id' });
-        }
+        const comments = await prisma.comment.findMany({
+            where: { bugId },
+            orderBy: { createdAt: 'asc' }
+        });
 
-        const bug = await db.collection('Bugs').findOne(
-            { _id: new ObjectId(bugId) },
-            { projection: { comments: 1 } }
-        );
-
-        if (!bug || !bug.comments || bug.comments.length === 0) {
+        if (!comments || comments.length === 0) {
             return res.status(404).json({ error: 'Comments not found' });
         }
-3
-        res.status(200).json(bug.comments);
+
+        res.status(200).json(comments);
     } catch (err) {
         console.error('Error fetching comments:', err);
         res.status(500).json({ error: 'Internal server error', details: err.message });

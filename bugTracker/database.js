@@ -5,15 +5,14 @@ dotenv.config();
 // Generate/Parse an ObjectIds
 const newId = (str) => ObjectId.createFromHexString(str);
 
-// Global variable storing the open connection, do not use it directly
+// Global variable storing the open connection
 let _db;
-let _client; 
-
+let _client;
 
 // Connect to database
 export async function connectToDatabase() {
     if (!_db) {
-        const uri = process.env.MONGO_URI
+        const uri = process.env.MONGO_URI;
         const dbName = process.env.MONGO_DB_NAME;
 
         if (!uri || !dbName) {
@@ -22,7 +21,7 @@ export async function connectToDatabase() {
 
         console.log('🔌 Connecting to MongoDB with TLS fallback...');
 
-        _client = await MongoClient.connect(uri, { // FIXED: was const client
+        _client = new MongoClient(uri, {
             ssl: true,
             tlsAllowInvalidCertificates: true,
             serverSelectionTimeoutMS: 20000,
@@ -30,48 +29,12 @@ export async function connectToDatabase() {
             w: 'majority'
         });
 
+        await _client.connect(); 
         _db = _client.db(dbName);
         console.log(`✅ Connected to MongoDB database: ${dbName}`);
     }
 
     return _db;
-}
-
-
-
-// Fetch all users from the Users collection
-async function getUsers() {
-    const db = await connectToDatabase();
-    let query = db.collection('Users').find(filter).sort(sort);
-
-    if (skip > 0){
-        query = query.skip(skip);
-    }
-
-    if (limit > 0){
-        query = query.limit(limit);
-    }
-    return query.toArray();
-}
-
-// Fetch all bugs from the Bugs collection
-async function getBugs() {
-    const db = await connectToDatabase();
-    let query = db.collection('Bugs').find(filter).sort(sort);
-
-    if (skip > 0){
-        query = query.skip(skip);
-    }
-
-    if (limit > 0){
-        query = query.limit(limit);
-    }
-    return query.toArray();
-}
-
-// Return the connected DB object for raw collection access
-async function getDb() {
-    return await connectToDatabase();
 }
 
 // Get the MongoDB client (needed for Better Auth)
@@ -81,4 +44,40 @@ export async function getClient() {
     }
     return _client;
 }
-export { getUsers, getBugs, getDb, newId};
+
+// Return the connected DB object for raw collection access
+async function getDb() {
+    return await connectToDatabase();
+}
+
+// Fetch all users from the Users collection
+async function getUsers(filter = {}, sort = {}, skip = 0, limit = 0) {
+    const db = await connectToDatabase();
+    let query = db.collection('user').find(filter).sort(sort);
+
+    if (skip > 0) {
+        query = query.skip(skip);
+    }
+
+    if (limit > 0) {
+        query = query.limit(limit);
+    }
+    return query.toArray();
+}
+
+// Fetch all bugs from the Bugs collection
+async function getBugs(filter = {}, sort = {}, skip = 0, limit = 0) {
+    const db = await connectToDatabase();
+    let query = db.collection('Bugs').find(filter).sort(sort);
+
+    if (skip > 0) {
+        query = query.skip(skip);
+    }
+
+    if (limit > 0) {
+        query = query.limit(limit);
+    }
+    return query.toArray();
+}
+
+export { getUsers, getBugs, getDb, newId };
