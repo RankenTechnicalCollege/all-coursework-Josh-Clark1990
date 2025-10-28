@@ -5,6 +5,9 @@ import { validate } from '../../middleware/validator.js';
 import { testIdSchema, testUpdateSchema, testUserSchema } from '../../validation/testSchema.js';
 import { bugIdSchema } from '../../validation/bugSchema.js';
 import { isAuthenticated } from '../../middleware/isAuthenticated.js';
+import { hasPermissions } from '../../middleware/hasPermissions.js';
+import { hasAnyRole } from '../../middleware/hasAnyRole.js';
+import { hasRole } from '../../middleware/hasRole.js';
 
 const prisma = new PrismaClient();
 
@@ -21,6 +24,8 @@ const router = express.Router();
 router.post(
     '/:bugId/tests',
     isAuthenticated,
+    hasPermissions('canAddTestCase'),
+    hasRole('qualityAnalysts'),
     validate(bugIdSchema, 'params'),
     validate(testUserSchema, 'body'),
     async (req, res) => {
@@ -90,7 +95,7 @@ router.post(
 // -----------------------------------------------------------------------------
 // Get all test cases from a bug
 // -----------------------------------------------------------------------------
-router.get('/:bugId/tests', isAuthenticated, validate(bugIdSchema, 'params'), async (req, res) => {
+router.get('/:bugId/tests', isAuthenticated, hasPermissions('canViewData'), hasAnyRole,validate(bugIdSchema, 'params'), async (req, res) => {
     try {
         const { bugId } = req.params;
 
@@ -124,7 +129,7 @@ router.get('/:bugId/tests', isAuthenticated, validate(bugIdSchema, 'params'), as
 // -----------------------------------------------------------------------------
 // Get a specific test case from a bug
 // -----------------------------------------------------------------------------
-router.get('/:bugId/tests/:testId', isAuthenticated, validate(testIdSchema, 'params'), async (req, res) => {
+router.get('/:bugId/tests/:testId', isAuthenticated, hasPermissions('canViewData'), hasAnyRole, validate(testIdSchema, 'params'), async (req, res) => {
     try {
         const { bugId, testId } = req.params;
 
@@ -154,6 +159,8 @@ router.get('/:bugId/tests/:testId', isAuthenticated, validate(testIdSchema, 'par
 router.patch(
     '/:bugId/tests/:testId',
     isAuthenticated,
+    hasPermissions('canEditTestCase'),
+    hasRole('qualityAnalysts'),
     validate(testIdSchema, 'params'),
     validate(testUpdateSchema, 'body'),
     async (req, res) => {
@@ -201,7 +208,7 @@ router.patch(
 // -----------------------------------------------------------------------------
 // Delete a test case from a bug
 // -----------------------------------------------------------------------------
-router.delete('/:bugId/tests/:testId', isAuthenticated, validate(testIdSchema, 'params'), async (req, res) => {
+router.delete('/:bugId/tests/:testId', isAuthenticated, hasPermissions('canDeleteTestCase'), hasRole('qualityAnalysts'), validate(testIdSchema, 'params'), async (req, res) => {
     try {
         const { bugId, testId } = req.params;
 

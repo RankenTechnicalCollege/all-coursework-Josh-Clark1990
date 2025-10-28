@@ -6,6 +6,9 @@ import { userIdSchema, userUpdateSchema } from '../../validation/userSchema.js';
 import { validate } from '../../middleware/validator.js';
 import { auth } from '../../middleware/auth.js';
 import { isAuthenticated } from '../../middleware/isAuthenticated.js';
+import { hasPermissions } from '../../middleware/hasPermissions.js';
+import { hasRole } from '../../middleware/hasRole.js';
+import { hasAnyRole } from '../../middleware/hasAnyRole.js';
 
 // Debug namespaces
 const debugGet = debug('users:get');
@@ -17,7 +20,7 @@ const router = express.Router();
 // -----------------------------------------------------------------------------
 // Get all users
 // -----------------------------------------------------------------------------
-router.get('/', isAuthenticated, async (req, res) => {
+router.get('/', isAuthenticated, hasPermissions('canViewData'), hasAnyRole, async (req, res) => {
   try {
     console.log('Fetching all users');
     const db = await getDb();
@@ -78,7 +81,7 @@ router.get('/', isAuthenticated, async (req, res) => {
 // -----------------------------------------------------------------------------
 // Find user by ID
 // -----------------------------------------------------------------------------
-router.get('/:id', isAuthenticated, validate(userIdSchema, 'params'), async (req, res) => {
+router.get('/:id', isAuthenticated, hasPermissions('canViewData'), hasAnyRole, validate(userIdSchema, 'params'), async (req, res) => {
     console.log('req.params:', req.params);
     console.log('req.body:', req.body);
     console.log('req.query:', req.query);
@@ -121,8 +124,16 @@ router.get('/:id', isAuthenticated, validate(userIdSchema, 'params'), async (req
 router.patch('/me', isAuthenticated, validate(userUpdateSchema, 'body'), async (req, res) => {
     try {
         const db = await getDb();
-        const userId = req.user.id; // Better Auth uses string IDs
+        const userId = req.user.id; 
         const updates = req.body || {};
+        
+        // Explicitly prevent role changes in the /me route
+        if ('role' in updates) {
+            return res.status(403).json({ 
+                error: 'Role changes are not allowed in this route. Please contact a technical manager.'
+            });
+        }
+        
         updates.lastUpdated = new Date();
 
         debugUpdate(`User ${userId} updating their info with: ${JSON.stringify(updates)}`);
@@ -172,7 +183,7 @@ router.patch('/me', isAuthenticated, validate(userUpdateSchema, 'body'), async (
 // -----------------------------------------------------------------------------
 // Update user by ID (technical manager)
 // -----------------------------------------------------------------------------
-router.patch('/:id', isAuthenticated, validate(userUpdateSchema, 'body'), validate(userIdSchema, 'params'), async (req, res) => {
+router.patch('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole('technicalManager'), validate(userUpdateSchema, 'body'), validate(userIdSchema, 'params'), async (req, res) => {
     try {
         const db = await getDb();
         const userId = req.params.id;
@@ -209,7 +220,7 @@ router.patch('/:id', isAuthenticated, validate(userUpdateSchema, 'body'), valida
 // -----------------------------------------------------------------------------
 // Delete user by ID
 // -----------------------------------------------------------------------------
-router.delete('/:id', isAuthenticated, validate(userIdSchema), async (req, res) => {
+router.delete('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole('technicalManager'), validate(userIdSchema), async (req, res) => {
     try {
         const db = await getDb();
         const userId = req.params.id;

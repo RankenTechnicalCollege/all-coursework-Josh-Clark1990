@@ -1,4 +1,4 @@
-import {getDatabase } from "../database.js";
+import { getDb } from "../database.js";
 
 /**
  * Middleware to check if user has required permission
@@ -16,7 +16,7 @@ export const hasPermissions = (permission) => {
         }
 
         //get database instance
-        const db = await getDatabase();
+        const db = await getDb();
 
         const roleDocuments = await db.collection('role').find({name: { $in: userRoles}}).toArray()
 

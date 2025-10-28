@@ -6,24 +6,21 @@
  * @returns {function} express middleware function
  */
 
-export const hasRole = (allowedRoles) => {
-  return (req, res, next) =>{
-
-    //Get the user roles
+/**
+ * Middleware to check if the user has exactly the required role
+ * @param {string} requiredRole
+ * @returns {function} express middleware function
+ */
+export const hasRole = (requiredRole) => {
+  return (req, res, next) => {
     const userRoles = req.user.role || [];
-
-    if(!Array.isArray(userRoles) || user.Roles.length === 0){
-      return res.status(403).json( {error: 'No roles assigned to user'});
+    if (!Array.isArray(userRoles) || userRoles.length === 0) {
+      return res.status(403).json({ error: 'No roles assigned to user' });
     }
-    //Convert allowedRoles to array if it's a string
-    const rolesArray = Array.isArray(allowedRoles) ? allowedRoles: [allowedRoles];
-
-    //Check if the user has any of the allowed roles
-    const hasAllowedRole = user.Roles.some(role => rolesArray.includes(role)); //returns a boolean 
-
-    if(!hasAllowedRole){
-      return res.status(403).json( {error: `Access denied. Required role(s): ${rolesArray.join(',')}`
-    })
-    
+    // User must have exactly one role and it must match requiredRole
+    if (userRoles.length !== 1 || userRoles[0] !== requiredRole) {
+      return res.status(403).json({ error: `Access denied. Required role: ${requiredRole}` });
+    }
+    next();
   };
-}};
+};

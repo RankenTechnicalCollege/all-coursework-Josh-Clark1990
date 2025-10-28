@@ -2,7 +2,7 @@ import Joi from 'joi';
 
 const registerSchema = Joi.object({
     email: Joi.string().email().required(),
-    password: Joi.string().min(6).max(20).required(), // Changed min to 6 to match Better Auth
+    password: Joi.string().min(6).max(20).required(),
     confirmPassword: Joi.string().valid(Joi.ref('password')).required(),
     role: Joi.string()
         .valid(
@@ -21,15 +21,15 @@ const registerSchema = Joi.object({
 
 const loginSchema = Joi.object({
     email: Joi.string().email().required(),
-    password: Joi.string().min(6).max(20).required() // Changed min to 6
+    password: Joi.string().min(6).max(20).required() 
 });
 
 const userIdSchema = Joi.object({
-    id: Joi.string().uuid().required() // Changed from hex to uuid
+    id: Joi.string().uuid().required() 
 });
 
 const userUpdateSchema = Joi.object({
-    password: Joi.string().min(6).max(20).optional(), // Changed min to 6
+    password: Joi.string().min(6).max(20).optional(), 
     confirmPassword: Joi.any()
         .valid(Joi.ref('password'))
         .when('password', {
@@ -40,16 +40,7 @@ const userUpdateSchema = Joi.object({
     fullName: Joi.string().optional(),
     givenName: Joi.string().optional(),
     familyName: Joi.string().optional(),
-    role: Joi.string()
-        .valid(
-            'developer',
-            'business analyst',
-            'quality analyst',
-            'product manager',
-            'technical manager',
-            'user'
-        )
-        .optional()
+    role: Joi.string().forbidden().optional()
 });
 
 export { registerSchema, loginSchema, userIdSchema, userUpdateSchema };
