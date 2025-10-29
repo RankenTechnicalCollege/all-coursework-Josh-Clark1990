@@ -4,8 +4,10 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+console.log('Initializing Better Auth with URL:', process.env.BETTER_AUTH_URL);
+
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL,
+  baseURL: 'http://localhost:5000',  // Use main server URL
   trustedOrigins: [
     "http://localhost:8080",
     "http://localhost:5000",
@@ -21,6 +23,9 @@ export const auth = betterAuth({
   session: {
     cookieCache: true,
     maxAge: 60 * 60 * 1000,
+  },
+  token:{
+    enabled: true,
   },
   advanced: {
     disableCSRFCheck: true,

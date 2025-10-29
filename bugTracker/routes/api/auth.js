@@ -18,8 +18,12 @@ export const authRouter = express.Router();
 // -----------------------------------------------------------------------------
 authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => {
   const { email, password, confirmPassword, fullName, givenName, familyName, role } = req.body;
+
+  console.log('Login result token:', result.token);
+const checkSession = await auth.api.getSession({ headers: { Cookie: `better-auth.session_token=${result.token}` } });
+console.log('Check session immediately after login:', checkSession);
+
   
-    console.log('Better Auth user ID:', result.user.id);
 
   if (password !== confirmPassword) {
     return res.status(400).json({ error: 'Passwords do not match' });
@@ -35,13 +39,26 @@ authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => 
       return res.status(400).json({ error: 'Failed to create user' });
     }
 
+    // Normalize role (accept either a string or an object like { name: 'technicalManager' })
+    const rawRole = typeof role === 'string' ? role : (role && role.name) ? role.name : 'developer';
+    // Map common camelCase or compact names to the spaced role names used in validation/role docs
+    const roleMap = {
+      technicalManager: 'technical manager',
+      businessAnalyst: 'business analyst',
+      qualityAnalyst: 'quality analyst',
+      productManager: 'product manager',
+      developer: 'developer'
+    };
+
+    const roleName = roleMap[rawRole] || rawRole;
+
     // 2. Upsert user in Prisma to ensure role exists
     const prismaUser = await prisma.user.upsert({
       where: { id: result.user.id },
       update: {
         givenName,
         familyName,
-        role: role || 'developer',
+        role: roleName,
         createdBugs: [],
         assignedBugs: []
       },
@@ -50,7 +67,7 @@ authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => 
         email,
         givenName,
         familyName,
-        role: role || 'developer',
+        role: roleName,
         createdBugs: [],
         assignedBugs: []
       }
@@ -100,12 +117,15 @@ authRouter.post('/sign-in/email', validate(loginSchema), async (req, res) => {
     };
 
     // Set auth cookie
-    res.cookie('better-auth.session_token', result.token, {
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // false for local testing
       sameSite: 'lax',
       maxAge: 60 * 60 * 1000
-    });
+    };
+    
+    debugLogin('Setting cookie with options:', cookieOptions);
+    res.cookie('better-auth.session_token', result.token, cookieOptions);
 
     res.status(200).json({
       message: `Login successful. Welcome back ${userPayload.givenName || result.user.name}!`,
