@@ -4,6 +4,9 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Export prisma so other files can use it
+export { prisma };
+
 console.log('Initializing Better Auth with URL:', process.env.BETTER_AUTH_URL);
 
 export const auth = betterAuth({

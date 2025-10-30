@@ -20,7 +20,7 @@ const router = express.Router();
 // -----------------------------------------------------------------------------
 // Get all users
 // -----------------------------------------------------------------------------
-router.get('/', isAuthenticated, hasPermissions('canViewData'), hasAnyRole, async (req, res) => {
+router.get('/', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']), async (req, res) => {
   try {
     console.log('Fetching all users');
     const db = await getDb();
@@ -49,7 +49,7 @@ router.get('/', isAuthenticated, hasPermissions('canViewData'), hasAnyRole, asyn
     const sortDirection = order === 'desc' ? -1 : 1;
     const sort = sortBy ? { [sortBy]: sortDirection } : { role: 1 };
 
-    const users = await usersCollection
+    const users = await db.collection('User')
       .find(filter, {
         projection: {
           email: 1,
@@ -81,7 +81,7 @@ router.get('/', isAuthenticated, hasPermissions('canViewData'), hasAnyRole, asyn
 // -----------------------------------------------------------------------------
 // Find user by ID
 // -----------------------------------------------------------------------------
-router.get('/:id', isAuthenticated, hasPermissions('canViewData'), hasAnyRole, validate(userIdSchema, 'params'), async (req, res) => {
+router.get('/:id', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']), validate(userIdSchema, 'params'), async (req, res) => {
     console.log('req.params:', req.params);
     console.log('req.body:', req.body);
     console.log('req.query:', req.query);
@@ -93,7 +93,7 @@ router.get('/:id', isAuthenticated, hasPermissions('canViewData'), hasAnyRole, v
         debugGet(`Fetching user with ID: ${userId}`);
 
         // Better Auth uses string IDs, not ObjectIds
-        const user = await db.collection('user').findOne(
+        const user = await db.collection('User').findOne(  // Changed to 'User'
             { id: userId },
             {
                 projection: {
@@ -155,14 +155,14 @@ router.patch('/me', isAuthenticated, validate(userUpdateSchema, 'body'), async (
 
         // Update custom fields
         if (Object.keys(updates).length > 1) { // More than just lastUpdated
-            await db.collection('user').updateOne(
+            await db.collection('User').updateOne(  // Changed to 'User'
                 { id: userId },
                 { $set: updates }
             );
 
             await db.collection('edits').insertOne({
                 timestamp: new Date(),
-                col: 'user',
+                col: 'User',  // Changed to 'User'
                 op: 'update',
                 target: { userId: userId },
                 update: updates,
@@ -183,7 +183,7 @@ router.patch('/me', isAuthenticated, validate(userUpdateSchema, 'body'), async (
 // -----------------------------------------------------------------------------
 // Update user by ID (technical manager)
 // -----------------------------------------------------------------------------
-router.patch('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole('technicalManager'), validate(userUpdateSchema, 'body'), validate(userIdSchema, 'params'), async (req, res) => {
+router.patch('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole('technical manager'), validate(userUpdateSchema, 'body'), validate(userIdSchema, 'params'), async (req, res) => {  // Changed to 'technical manager'
     try {
         const db = await getDb();
         const userId = req.params.id;
@@ -198,7 +198,7 @@ router.patch('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole(
             delete updates.confirmPassword;
         }
 
-        const result = await db.collection('user').updateOne(
+        const result = await db.collection('User').updateOne(  // Changed to 'User'
             { id: userId }, 
             { $set: updates }
         );
@@ -220,14 +220,14 @@ router.patch('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole(
 // -----------------------------------------------------------------------------
 // Delete user by ID
 // -----------------------------------------------------------------------------
-router.delete('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole('technicalManager'), validate(userIdSchema), async (req, res) => {
+router.delete('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole('technical manager'), validate(userIdSchema, 'params'), async (req, res) => {  // Changed to 'technical manager' and fixed validate
     try {
         const db = await getDb();
         const userId = req.params.id;
 
         debugDelete(`Attempting to delete user: ${userId}`);
 
-        const result = await db.collection('user').deleteOne({ id: userId }); // Changed from _id to id
+        const result = await db.collection('User').deleteOne({ id: userId });  // Changed to 'User'
 
         if (result.deletedCount === 0) {
             return res.status(404).json({ error: 'User not found' });

@@ -25,7 +25,7 @@ router.post(
     '/:bugId/tests',
     isAuthenticated,
     hasPermissions('canAddTestCase'),
-    hasRole('qualityAnalysts'),
+    hasRole('quality analyst'),  // Changed from 'qualityAnalysts'
     validate(bugIdSchema, 'params'),
     validate(testUserSchema, 'body'),
     async (req, res) => {
@@ -95,7 +95,7 @@ router.post(
 // -----------------------------------------------------------------------------
 // Get all test cases from a bug
 // -----------------------------------------------------------------------------
-router.get('/:bugId/tests', isAuthenticated, hasPermissions('canViewData'), hasAnyRole,validate(bugIdSchema, 'params'), async (req, res) => {
+router.get('/:bugId/tests', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']), validate(bugIdSchema, 'params'), async (req, res) => {
     try {
         const { bugId } = req.params;
 
@@ -129,7 +129,7 @@ router.get('/:bugId/tests', isAuthenticated, hasPermissions('canViewData'), hasA
 // -----------------------------------------------------------------------------
 // Get a specific test case from a bug
 // -----------------------------------------------------------------------------
-router.get('/:bugId/tests/:testId', isAuthenticated, hasPermissions('canViewData'), hasAnyRole, validate(testIdSchema, 'params'), async (req, res) => {
+router.get('/:bugId/tests/:testId', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']), validate(testIdSchema, 'params'), async (req, res) => {
     try {
         const { bugId, testId } = req.params;
 
@@ -160,7 +160,7 @@ router.patch(
     '/:bugId/tests/:testId',
     isAuthenticated,
     hasPermissions('canEditTestCase'),
-    hasRole('qualityAnalysts'),
+    hasRole('quality analyst'),  // Changed from 'qualityAnalysts'
     validate(testIdSchema, 'params'),
     validate(testUpdateSchema, 'body'),
     async (req, res) => {
@@ -208,7 +208,7 @@ router.patch(
 // -----------------------------------------------------------------------------
 // Delete a test case from a bug
 // -----------------------------------------------------------------------------
-router.delete('/:bugId/tests/:testId', isAuthenticated, hasPermissions('canDeleteTestCase'), hasRole('qualityAnalysts'), validate(testIdSchema, 'params'), async (req, res) => {
+router.delete('/:bugId/tests/:testId', isAuthenticated, hasPermissions('canDeleteTestCase'), hasRole('quality analyst'), validate(testIdSchema, 'params'), async (req, res) => {  // Changed from 'qualityAnalysts'
     try {
         const { bugId, testId } = req.params;
 

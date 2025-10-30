@@ -1,4 +1,4 @@
-import { auth } from './auth.js';
+import { auth, prisma } from './auth.js';
 
 export async function isAuthenticated(req, res, next) {
   try {
@@ -15,7 +15,7 @@ export async function isAuthenticated(req, res, next) {
         id: sessionUser.id,
         email: sessionUser.email,
         name: sessionUser.name,
-        userRoles: sessionUser.role ? [sessionUser.role] : []
+        userRoles: sessionUser.role ? [sessionUser.role] : []  // userRoles (plural) to match hasPermissions
       };
 
       console.log('=== End Debug Info ===\n');
@@ -35,38 +35,68 @@ export async function isAuthenticated(req, res, next) {
 
     console.log('3. Session token found:', token.substring(0, 10) + '...');
 
-    // Attempt to fetch session using getSessionByToken
-    console.log('4. Attempting to get session via auth.api.getSessionByToken()...');
-    let session;
-    try {
-      session = await auth.api.getSessionByToken(token);
-      console.log('5. Direct API call result:', session && session.user ? 'Session found' : 'No session');
-    } catch (error) {
-      console.error('6. Session retrieval error (auth.api.getSessionByToken):', error);
-    }
+    // Manually validate session from database
+    console.log('4. Validating session from database...');
+    const dbSession = await prisma.session.findUnique({
+      where: { token: token },
+      include: { user: true }
+    });
 
-    if (!session || !session.user) {
-      console.log('7. No valid session found');
+    console.log('5. Database session found:', dbSession ? 'Yes' : 'No');
+    
+    if (!dbSession) {
+      console.log('6. Session not found in database');
       console.log('=== End Debug Info ===\n');
       return res.status(401).json({
         error: 'Unauthorized',
-        message: 'Invalid or expired session'
+        message: 'Invalid session'
       });
     }
 
-    const sessionUser = session.user;
+    console.log('6. DB Session user ID:', dbSession.userId);
+    console.log('7. DB Session expires:', dbSession.expiresAt);
+    
+    // Check if session is expired
+    const isExpired = new Date() > new Date(dbSession.expiresAt);
+    console.log('8. Is session expired?', isExpired);
+    
+    if (isExpired) {
+      console.log('9. Session has expired');
+      console.log('=== End Debug Info ===\n');
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Session has expired'
+      });
+    }
+
+    if (!dbSession.user) {
+      console.log('9. User not found for session');
+      console.log('=== End Debug Info ===\n');
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'User not found'
+      });
+    }
+
+    const userRole = dbSession.user.role || 'user';
 
     // Attach user info for downstream routes
     req.user = {
-      id: sessionUser.id,
-      email: sessionUser.email,
-      name: sessionUser.name,
-      userRoles: sessionUser.role ? [sessionUser.role] : []
+      id: dbSession.user.id,
+      email: dbSession.user.email,
+      name: dbSession.user.name,
+      userRoles: [userRole]  // userRoles (plural) - matches hasPermissions expectation
     };
 
-    req.session = session;
+    req.session = {
+      session: dbSession,
+      user: dbSession.user
+    };
 
-    console.log('8. Session successfully attached to req');
+    console.log('10. ✅ Session successfully validated');
+    console.log('11. User ID:', req.user.id);
+    console.log('12. User email:', req.user.email);
+    console.log('13. User roles:', req.user.userRoles);
     console.log('=== End Debug Info ===\n');
 
     next();
@@ -74,7 +104,7 @@ export async function isAuthenticated(req, res, next) {
     console.error('isAuthenticated error:', err);
     return res.status(401).json({
       error: 'Unauthorized',
-      message: 'Invalid or expired session'
+      message: 'Session validation failed'
     });
   }
 }

@@ -19,8 +19,8 @@ const router = express.Router();
 router.post(
     '/:bugId/comments',
     isAuthenticated,
-    hasPermissions('canAddComments'),
-    hasAnyRole,
+    hasPermissions('canAddComment'),  // Changed from 'canAddComments' to 'canAddComment'
+    hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']),
     validate(bugCommentSchema, 'body'),
     validate(bugIdSchema, 'params'),
     async (req, res) => {
@@ -89,7 +89,7 @@ router.get(
     '/:bugId/comments/:commentId',
     isAuthenticated,
     hasPermissions('canViewData'),
-    hasAnyRole,
+    hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']),
     validate(bugCommentSearchSchema, 'params'),
     async (req, res) => {
         try {
@@ -119,7 +119,7 @@ router.get(
 // -----------------------------------------------------------------------------
 // Find all comments on a specific bug id
 // -----------------------------------------------------------------------------
-router.get('/:bugId/comments', isAuthenticated,hasPermissions('canViewData'), hasAnyRole, validate(bugIdSchema, 'params'), async (req, res) => {
+router.get('/:bugId/comments', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']), validate(bugIdSchema, 'params'), async (req, res) => {
     try {
         const { bugId } = req.params;
 

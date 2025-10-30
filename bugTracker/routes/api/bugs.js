@@ -1,5 +1,6 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
+import { getDb } from '../../database.js';  // Add this import
 import debug from 'debug';
 import {
     bugCreateSchema,
@@ -31,7 +32,7 @@ const router = express.Router();
 // -----------------------------------------------------------------------------
 // Get all bugs
 // -----------------------------------------------------------------------------
-router.get('/', isAuthenticated, hasPermissions('canViewData'), hasAnyRole, async (req, res) => {
+router.get('/', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']), async (req, res) => {
   try {
     debugList('Fetching all bugs');
     
@@ -124,7 +125,7 @@ router.get('/', isAuthenticated, hasPermissions('canViewData'), hasAnyRole, asyn
 // -----------------------------------------------------------------------------
 // Get bug by ID
 // -----------------------------------------------------------------------------
-router.get('/:bugId', isAuthenticated, hasPermissions('canViewData'), hasAnyRole, validate(bugIdSchema, 'params'), async (req, res) => {
+router.get('/:bugId', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']), validate(bugIdSchema, 'params'), async (req, res) => {
   try {
     const { bugId } = req.params;
     debugGet(`Fetching bug with ID: ${bugId}`);
@@ -162,7 +163,7 @@ router.get('/:bugId', isAuthenticated, hasPermissions('canViewData'), hasAnyRole
 // -----------------------------------------------------------------------------
 // Create new bug
 // -----------------------------------------------------------------------------
-router.post('', isAuthenticated, hasPermissions('canCreateBug'), hasAnyRole, validate(bugCreateSchema, 'body'), async (req, res) => {
+router.post('/', isAuthenticated, hasPermissions('canCreateBug'), hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']), validate(bugCreateSchema, 'body'), async (req, res) => {
   try {
     const { title, description, stepsToReproduce, authorOfBug } = req.body;
     debugCreate('Creating new bug');
@@ -180,14 +181,20 @@ router.post('', isAuthenticated, hasPermissions('canCreateBug'), hasAnyRole, val
 
     debugCreate(`Bug created with ID: ${newBug.id}`);
 
-                await db.collection('edits').insertOne({
-                timestamp: new Date(),
-                col: 'bug',
-                op: 'update',
-                target: { bugId: bugId },
-                update: updates,
-                auth: req.user
-            });
+    // Log edit
+    try {
+      const db = await getDb();
+      await db.collection('edits').insertOne({
+        timestamp: new Date(),
+        col: 'Bug',
+        op: 'create',
+        target: { bugId: newBug.id },
+        update: { title, description, stepsToReproduce, authorOfBug },
+        auth: req.user
+      });
+    } catch (editErr) {
+      console.error('Failed to log edit:', editErr);
+    }
 
     res.status(201).json({
       message: 'New bug reported',
@@ -203,7 +210,7 @@ router.post('', isAuthenticated, hasPermissions('canCreateBug'), hasAnyRole, val
 // -----------------------------------------------------------------------------
 // Update bug by ID
 // -----------------------------------------------------------------------------
-router.patch('/:bugId', isAuthenticated, hasPermissions('canEditAnyBug', 'canEditIfAssignedTo','canEditIfMyBug'), hasAnyRole, validate(bugUpdateSchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
+router.patch('/:bugId', isAuthenticated, hasPermissions('canEditAnyBug'), hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']), validate(bugUpdateSchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
   try {
     const { bugId } = req.params;
     const updates = req.body || {};
@@ -214,19 +221,25 @@ router.patch('/:bugId', isAuthenticated, hasPermissions('canEditAnyBug', 'canEdi
       data: updates
     });
 
+    // Log edit
+    try {
+      const db = await getDb();
+      await db.collection('edits').insertOne({
+        timestamp: new Date(),
+        col: 'Bug',
+        op: 'update',
+        target: { bugId: bugId },
+        update: updates,
+        auth: req.user
+      });
+    } catch (editErr) {
+      console.error('Failed to log edit:', editErr);
+    }
+
     res.status(200).json({
       message: 'Bug updated successfully',
       lastUpdated: updatedBug.lastUpdated
     });
-    
-      await db.collection('edits').insertOne({
-                timestamp: new Date(),
-                col: 'bug',
-                op: 'update',
-                target: { bugId: bugId },
-                update: updates,
-                auth: req.user
-            });
 
   } catch (err) {
     if (err.code === 'P2025') {
@@ -240,7 +253,7 @@ router.patch('/:bugId', isAuthenticated, hasPermissions('canEditAnyBug', 'canEdi
 // -----------------------------------------------------------------------------
 // Classify bug by ID
 // -----------------------------------------------------------------------------
-router.patch('/:bugId/classify', isAuthenticated, hasPermissions('canClassifyAnyBug', 'canEditIfAssignedTo', 'canEditMyBug'), validate(bugClassifySchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
+router.patch('/:bugId/classify', isAuthenticated, hasPermissions('canClassifyAnyBug'), hasAnyRole(['business analyst', 'quality analyst', 'product manager', 'technical manager']), validate(bugClassifySchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
   try {
     const { bugId } = req.params;
     const { classification } = req.body;
@@ -251,14 +264,20 @@ router.patch('/:bugId/classify', isAuthenticated, hasPermissions('canClassifyAny
       data: { classification }
     });
 
-            await db.collection('edits').insertOne({
-                timestamp: new Date(),
-                col: 'bug',
-                op: 'update',
-                target: { bugId: bugId },
-                update: updates,
-                auth: req.user
-            });
+    // Log edit
+    try {
+      const db = await getDb();
+      await db.collection('edits').insertOne({
+        timestamp: new Date(),
+        col: 'Bug',
+        op: 'classify',
+        target: { bugId: bugId },
+        update: { classification },
+        auth: req.user
+      });
+    } catch (editErr) {
+      console.error('Failed to log edit:', editErr);
+    }
 
     res.status(200).json({
       message: 'Bug classification updated',
@@ -276,7 +295,7 @@ router.patch('/:bugId/classify', isAuthenticated, hasPermissions('canClassifyAny
 // -----------------------------------------------------------------------------
 // Assign a user to a bug
 // -----------------------------------------------------------------------------
-router.patch('/:bugId/assign', isAuthenticated, hasPermissions('canReassignAnyBug', 'canReassignIfAssignedTo', 'canEditMyBug'), validate(bugAssignSchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
+router.patch('/:bugId/assign', isAuthenticated, hasPermissions('canReassignAnyBug'), hasAnyRole(['business analyst', 'quality analyst', 'product manager', 'technical manager']), validate(bugAssignSchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
   try {
     const { bugId } = req.params;
     const { user_id } = req.body;
@@ -336,7 +355,7 @@ router.patch('/:bugId/assign', isAuthenticated, hasPermissions('canReassignAnyBu
 // -----------------------------------------------------------------------------
 // Close a bug
 // -----------------------------------------------------------------------------
-router.patch('/:bugId/close', isAuthenticated, hasPermissions('canCloseAnyBug'), hasRole('businessAnalyst'), validate(bugCloseSchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
+router.patch('/:bugId/close', isAuthenticated, hasPermissions('canCloseAnyBug'), hasRole('business analyst'), validate(bugCloseSchema, 'body'), validate(bugIdSchema, 'params'), async (req, res) => {
   try {
     const { bugId } = req.params;
     debugClose(`Closing bug ${bugId}`);
