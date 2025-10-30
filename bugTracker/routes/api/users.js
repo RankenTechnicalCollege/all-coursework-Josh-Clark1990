@@ -93,8 +93,8 @@ router.get('/:id', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['
         debugGet(`Fetching user with ID: ${userId}`);
 
         // Better Auth uses string IDs, not ObjectIds
-        const user = await db.collection('User').findOne(  // Changed to 'User'
-            { id: userId },
+        const user = await db.collection('User').findOne( 
+            { _id: userId },
             {
                 projection: {
                     email: 1,
@@ -156,7 +156,7 @@ router.patch('/me', isAuthenticated, validate(userUpdateSchema, 'body'), async (
         // Update custom fields
         if (Object.keys(updates).length > 1) { // More than just lastUpdated
             await db.collection('User').updateOne(  // Changed to 'User'
-                { id: userId },
+                { _id: userId },
                 { $set: updates }
             );
 
@@ -199,7 +199,7 @@ router.patch('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole(
         }
 
         const result = await db.collection('User').updateOne(  // Changed to 'User'
-            { id: userId }, 
+            { _id: userId }, 
             { $set: updates }
         );
 
@@ -227,8 +227,7 @@ router.delete('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole
 
         debugDelete(`Attempting to delete user: ${userId}`);
 
-        const result = await db.collection('User').deleteOne({ id: userId });  // Changed to 'User'
-
+        const result = await db.collection('User').deleteOne({ _id: userId }); 
         if (result.deletedCount === 0) {
             return res.status(404).json({ error: 'User not found' });
         }

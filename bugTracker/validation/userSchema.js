@@ -10,8 +10,7 @@ const registerSchema = Joi.object({
             'business analyst',
             'quality analyst',
             'product manager',
-            'technical manager',
-            'user'
+            'technical manager'
         )
         .required(),
     fullName: Joi.string().required(),
@@ -25,7 +24,7 @@ const loginSchema = Joi.object({
 });
 
 const userIdSchema = Joi.object({
-    id: Joi.string().uuid().required() 
+    id: Joi.string().required() 
 });
 
 const userUpdateSchema = Joi.object({
