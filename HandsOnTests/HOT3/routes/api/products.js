@@ -1,7 +1,7 @@
 import express from 'express';
 import { getDb } from '../../database.js';
 import { ObjectId } from 'mongodb';
-import { productCreateSchema, productIdSchemea, productNameSchema } from '../../validation/productSchema.js';
+import { productCreateSchema, productIdSchema, productNameSchema, productUpdateSchema } from '../../validation/productSchema.js';
 import { validate } from '../../middleware/validator.js';
 
 const router = express.Router();
@@ -28,7 +28,7 @@ router.get('/', async (req, res) => {
 
 
 //get product by id
-router.get('/:id', validate(productIdSchemea), async (req, res) => {
+router.get('/:id', validate(productIdSchema), async (req, res) => {
   try {
     const db = await getDb();
     const productId = req.params.id;
@@ -52,39 +52,43 @@ router.get('/:id', validate(productIdSchemea), async (req, res) => {
   }
 });
 
-//search product by name
+//get product by name
+
 router.get('/name/:name', validate(productNameSchema), async (req, res) => {
-  try{
+  try {
     const db = await getDb();
     const productName = req.params.name;
 
-    if(!ObjectId.isValid(productName)){
-      return res.status(400).json({error: 'Invalid product name' });
-    }
-
     const product = await db
-    .collection('products')
-    .findOne({ name: productName });
+      .collection('products')
+      .findOne({ name: { $regex: productName, $options: 'i' } });
 
-    if(!product){
-      return res.status(404).json({error: 'Product not found'});
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
     }
+
     res.status(200).json(product);
-    } catch (err) {
-      console.error('Error fetching product by name:', err);
-      res.status(500).json({error: err.message || 'Internal server error' });
-    }
+
+  } catch (err) {
+    console.error('Error fetching product by name:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
 });
 
-//add new product
+
+// Add new product
 router.post('/create', validate(productCreateSchema), async (req, res) => {
-  try{
+  try {
     const db = await getDb();
     const newProduct = req.body;
 
-    const existingProduct = await db.collection('products').findOne({name: newProduct.name});
-    if(existingProduct){
-      return res.status(409).json({error: 'Product with same name already exists'});
+    // Check if product already exists (case-insensitive)
+    const existingProduct = await db.collection('products').findOne(
+      { name: { $regex: `^${newProduct.name}$`, $options: 'i' } }
+    );
+
+    if (existingProduct) {
+      return res.status(409).json({ error: 'Product with same name already exists' });
     }
 
     const productToAdd = {
@@ -96,19 +100,23 @@ router.post('/create', validate(productCreateSchema), async (req, res) => {
       lastUpdated: new Date()
     };
 
-    delete productToAdd. _id;
-    
     const result = await db.collection('products').insertOne(productToAdd);
-    res.status(201).json({message: 'Product successfully added', productId: result.insertedId});
+
+    res.status(201).json({
+      message: 'Product successfully added',
+      productId: result.insertedId
+    });
+
   } catch (err) {
     console.error('Error adding new product:', err);
-    res.status(500).json({error: err.message || 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
 
+
 //update a product
-router.patch('/:id/update', validate(productIdSchemea), async (req, res) => {
+router.patch('/:id/update', validate(productIdSchema, 'params'), validate(productUpdateSchema, 'body'), async (req, res) => {
   try{
     const db = await getDb();
     const productId = req.params.id;
@@ -139,7 +147,7 @@ router.patch('/:id/update', validate(productIdSchemea), async (req, res) => {
 });;
 
 //delete a product by id
-router.delete('/:id/delete', validate(productIdSchemea), async (req, res) => {
+router.delete('/:id/delete', validate(productIdSchema), async (req, res) => {
   try{
     const db = await getDb();
     const productId = req.params.id;

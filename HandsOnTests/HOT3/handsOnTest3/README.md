@@ -1,16 +1,54 @@
-# React + Vite
+# Product Inventory Management - Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A Next.js frontend for managing product inventory with full CRUD operations.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Display all products in a grid layout
+- Search products by name or ID
+- Add new products
+- Update existing products
+- Delete products
+- Responsive design
 
-## React Compiler
+## Prerequisites
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Node.js (v18 or higher)
+- Backend API running (default: `http://localhost:5000`)
 
-## Expanding the ESLint configuration
+## Installation
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+This project is built with Next.js and is ready to run in the v0 environment.
+
+## API Configuration
+
+The frontend connects to your backend API using the `NEXT_PUBLIC_API_URL` environment variable.
+
+**To configure your backend URL:**
+
+1. Click on the **Vars** section in the in-chat sidebar
+2. Add a new environment variable:
+   - **Name:** `NEXT_PUBLIC_API_URL`
+   - **Value:** Your backend URL (e.g., `http://localhost:5000/api/products`)
+
+If not set, it defaults to `http://localhost:5000/api/products`.
+
+## Backend Routes Expected
+
+The frontend expects these routes from your Express backend:
+
+- `GET /` - Get all products
+- `GET /:id` - Get product by ID
+- `GET /name/:name` - Get product by name
+- `POST /create` - Create new product
+- `PATCH /:id/update` - Update product
+- `DELETE /:id/delete` - Delete product
+
+## CORS Configuration
+
+Make sure your Express backend has CORS enabled to allow requests from the frontend:
+
+\`\`\`javascript
+import cors from 'cors';
+app.use(cors());
+\`\`\`

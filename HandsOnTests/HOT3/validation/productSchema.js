@@ -7,7 +7,7 @@ const productCreateSchema = joi.object({
   category: joi.string().required(),
 });
 
-const productIdSchemea = joi.object({
+const productIdSchema = joi.object({
   id: joi.string().hex().length(24).required(),
 });
 
@@ -22,4 +22,4 @@ const productNameSchema = joi.object({
   name: joi.string().min(1).max(100).required(),
 });
 
-export { productCreateSchema, productIdSchemea, productUpdateSchema, productNameSchema };
+export { productCreateSchema, productIdSchema, productUpdateSchema, productNameSchema };

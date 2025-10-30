@@ -10,6 +10,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use('/api/products', productsRouter);
 
+
 const PORT = process.env.PORT || 2023;
 const HOST = 'localhost';
 
