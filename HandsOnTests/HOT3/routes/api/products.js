@@ -3,11 +3,12 @@ import { getDb } from '../../database.js';
 import { ObjectId } from 'mongodb';
 import { productCreateSchema, productIdSchema, productNameSchema, productUpdateSchema } from '../../validation/productSchema.js';
 import { validate } from '../../middleware/validator.js';
+import { isAuthenticated } from '../../middleware/isAuthenticated.js'; 
 
 const router = express.Router();
 
-// Get all products
-router.get('/', async (req, res) => {
+// Get all products------------------------------------------------------------------------------------------------------------
+router.get('/', isAuthenticated,  async (req, res) => {
   console.log('Fetching all products');
   try {
     const db = await getDb();
@@ -27,8 +28,8 @@ router.get('/', async (req, res) => {
 });
 
 
-//get product by id
-router.get('/:id', validate(productIdSchema), async (req, res) => {
+//get product by id--------------------------------------------------------------------------------------------------------
+router.get('/:id', isAuthenticated, validate(productIdSchema), async (req, res) => {
   try {
     const db = await getDb();
     const productId = req.params.id;
@@ -52,9 +53,9 @@ router.get('/:id', validate(productIdSchema), async (req, res) => {
   }
 });
 
-//get product by name
+//get product by name-------------------------------------------------------------------------------------------------
 
-router.get('/name/:name', validate(productNameSchema), async (req, res) => {
+router.get('/name/:name', isAuthenticated, validate(productNameSchema), async (req, res) => {
   try {
     const db = await getDb();
     const productName = req.params.name;
@@ -76,8 +77,8 @@ router.get('/name/:name', validate(productNameSchema), async (req, res) => {
 });
 
 
-// Add new product
-router.post('/create', validate(productCreateSchema), async (req, res) => {
+// Add new product------------------------------------------------------------------------------------------------
+router.post('/create', isAuthenticated, validate(productCreateSchema), async (req, res) => {
   try {
     const db = await getDb();
     const newProduct = req.body;
@@ -115,8 +116,8 @@ router.post('/create', validate(productCreateSchema), async (req, res) => {
 
 
 
-//update a product
-router.patch('/:id/update', validate(productIdSchema, 'params'), validate(productUpdateSchema, 'body'), async (req, res) => {
+//update a product----------------------------------------------------------------------------------------------------------------
+router.patch('/:id/update', isAuthenticated, validate(productIdSchema, 'params'), validate(productUpdateSchema, 'body'), async (req, res) => {
   try{
     const db = await getDb();
     const productId = req.params.id;
@@ -146,7 +147,7 @@ router.patch('/:id/update', validate(productIdSchema, 'params'), validate(produc
   }
 });;
 
-//delete a product by id
+//delete a product by id------------------------------------------------------------------------------------------------------
 router.delete('/:id/delete', validate(productIdSchema), async (req, res) => {
   try{
     const db = await getDb();
