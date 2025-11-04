@@ -1,5 +1,5 @@
 import { auth } from './auth.js';
-import { getDb } from './db.js'; // Your MongoDB connection
+import { getDb } from '../database.js'; // Your MongoDB connection
 import { ObjectId } from 'mongodb';
 
 export async function isAuthenticated(req, res, next) {

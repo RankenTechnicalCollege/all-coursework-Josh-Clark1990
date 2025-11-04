@@ -46,3 +46,12 @@ export async function getProducts(filter = {}, sort = {}, skip = 0, limit = 0) {
 }
 
 export { newId };
+
+const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
+export const client = new MongoClient(uri, {
+  ssl: true,
+  tlsAllowInvalidCertificates: true,
+  serverSelectionTimeoutMS: 20000,
+  retryWrites: true,
+  w: 'majority',
+});

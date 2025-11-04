@@ -2,8 +2,9 @@ import express from 'express';
 import { auth } from '../../middleware/auth.js';
 import { validate } from '../../middleware/validator.js';
 import { registerSchema, loginSchema } from '../../validation/userSchema.js';
+import { getDb } from '../../database.js';
 
-export const authRouter = express.Router();
+const authRouter = express.Router();
 
 //Register new user---------------------------------------------------------------------------------------------------------------
 authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => {
@@ -21,6 +22,19 @@ authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => 
     if (!result || !result.user) {
       return res.status(400).json({ error: 'Failed to create user' });
     }
+
+    const dbUser = await db.Users.upsert({
+      where: { id: result.user.id },
+      update: {
+        name: fullName,
+        email
+      },
+      create: {
+        id: result.user.id,
+        email,
+        name: fullName
+      }
+    });
 
     res.status(201).json({
       message: 'User registered successfully',
@@ -47,6 +61,10 @@ authRouter.post('/sign-in/email', validate(loginSchema), async (req, res) => {
     if (!result || !result.user) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
+
+    const dbUser = await db.Users.findUnique({
+      where: { email }
+    });
 
     const cookieOptions = {
       httpOnly: true,
@@ -90,3 +108,5 @@ authRouter.post('/sign-out', async (req, res) => {
     res.status(500).json({ error: 'Failed to sign out' });
   } 
 });
+
+export default authRouter;

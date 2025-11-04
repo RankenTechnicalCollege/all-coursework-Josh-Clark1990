@@ -1,9 +1,10 @@
 import express from 'express';
 import { getDb } from '../../database.js';
 import { ObjectId } from 'mongodb';
-import { auth } from '../../middleware/auth,js';
+import { auth } from '../../middleware/auth.js';
 import { userIdSchema, userUpdateSchema } from '../../validation/userSchema.js';
 import { isAuthenticated } from '../../middleware/isAuthenticated.js';
+import { validate } from '../../middleware/validator.js';
 
 const router = express.Router();
 
@@ -64,7 +65,7 @@ router.get('/me', isAuthenticated, async (req, res) => {
 router.patch('/me', isAuthenticated, validate(userUpdateSchema, 'body'), async (req, res) => {
   try {
     const db = await getDb();
-    const userId = req.user.id; // This will come from your auth middleware later
+    const userId = req.user.id; 
     const updates = req.body || {};
     
     updates.lastUpdated = new Date();
@@ -87,3 +88,5 @@ router.patch('/me', isAuthenticated, validate(userUpdateSchema, 'body'), async (
     res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
+
+export { router as usersRouter };
