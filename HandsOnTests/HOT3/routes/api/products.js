@@ -15,6 +15,23 @@ router.get('/', async (req, res) => {
     const db = await getDb();
     const productsCollection = db.collection('products');
 
+    // const { keywords, category, maxPrice, minPrice, sortBy } = req.query;
+
+    // const pageNum = parseInt(page) || 1;
+    // const limitNum = parseInt(limit) || 0;
+    // const skip = limitNum > 0 ? (pageNum -1) * limitNum: 0;
+
+    // const filter = {};
+    // if(keywords) filter.$text = { $search: keywords };
+    // if (category) filter.category = category;
+
+    // if(minPrice || maxPrice){
+      
+    // }
+
+    // const sortDirection = order === "name" ? -1: 1;
+    // const sortBy = sortBy ? { [sortBy]: sortDirection} : { category: 1};
+
     const products = await productsCollection.find({}).toArray();
 
     if (!products || products.length === 0) {
@@ -30,7 +47,7 @@ router.get('/', async (req, res) => {
 
 
 //get product by id--------------------------------------------------------------------------------------------------------
-router.get('/:id', isAuthenticated, validate(productIdSchema), hasRole('admin'), async (req, res) => {
+router.get('/:id', isAuthenticated, hasRole('admin'), validate(productIdSchema),  async (req, res) => {
   try {
     const db = await getDb();
     const productId = req.params.id;
@@ -56,20 +73,21 @@ router.get('/:id', isAuthenticated, validate(productIdSchema), hasRole('admin'),
 
 //get product by name-------------------------------------------------------------------------------------------------
 
-router.get('/name/:name', isAuthenticated, validate(productNameSchema), hasRole('admin'), async (req, res) => {
+router.get('/name/:name', isAuthenticated, hasRole('admin'), validate(productNameSchema), async (req, res) => {
   try {
     const db = await getDb();
     const productName = req.params.name;
 
-    const product = await db
+    const products = await db
       .collection('products')
-      .findOne({ name: { $regex: productName, $options: 'i' } });
+      .find({ name: { $regex: productName, $options: 'i' } })
+      .toArray();
 
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
+    if (!products || products.length === 0) {
+      return res.status(404).json({ error: 'No products found' });
     }
 
-    res.status(200).json(product);
+    res.status(200).json(products);
 
   } catch (err) {
     console.error('Error fetching product by name:', err);

@@ -1,6 +1,5 @@
 import express from 'express';
 import { getDb } from '../../database.js';
-import { ObjectId } from 'mongodb';
 import debug from 'debug';
 import { userIdSchema, userUpdateSchema } from '../../validation/userSchema.js';
 import { validate } from '../../middleware/validator.js';

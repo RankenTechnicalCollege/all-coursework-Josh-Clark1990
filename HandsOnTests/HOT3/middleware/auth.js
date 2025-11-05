@@ -10,7 +10,6 @@ export const auth = betterAuth({
   ],
   database: mongodbAdapter(await getDb()),
   
-  // Add custom user fields
   user: {
     additionalFields: {
       role: {
@@ -25,13 +24,26 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 6,
   },
+  
   session: {
-    cookieCache: true,
-    maxAge: 60 * 60 * 1000, //1 hour
+    cookieCache: {
+      enabled: true,
+      maxAge: 60 * 60 * 1000
+    },
+    // ✅ Add cookie configuration
+    cookie: {
+      name: 'better-auth.session_token',
+      secure: false, 
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/'
+    }
   },
+  
   token: {
     enabled: true,
   },
+  
   advanced: {
     disableCSRFCheck: true,
   }, 

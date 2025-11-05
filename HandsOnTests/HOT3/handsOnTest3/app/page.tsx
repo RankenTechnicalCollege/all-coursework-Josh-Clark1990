@@ -33,24 +33,42 @@ export default function Page() {
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
 
-  useEffect(() => {
-    fetchProducts()
-    checkAuth()
-  }, [])
+  // ✅ Define functions BEFORE useEffect
+  const fetchProducts = async () => {
+    setLoading(true)
+    setError(null)
+    setSearchMode(false)
+    try {
+      const data = await getAllProducts()
+      setProducts(data)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const checkAuth = async () => {
     try {
-      const response = await fetch('http://localhost:2023/api/auth/session', {
+      const response = await fetch('http://localhost:2023/api/auth/get-session', {
         credentials: 'include'
       })
       if (response.ok) {
         const data = await response.json()
-        setUser(data.user)
+        if (data.session && data.user) {
+          setUser(data.user)
+        }
       }
     } catch (err) {
       console.log('Not authenticated')
     }
   }
+
+  // ✅ useEffect NOW comes after function definitions
+  useEffect(() => {
+    fetchProducts()
+    checkAuth()
+  }, [])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -58,24 +76,42 @@ export default function Page() {
     setAuthError('')
     
     try {
-      const response = await fetch('http://localhost:2023/api/auth/sign-in', {
+      const response = await fetch('http://localhost:2023/api/auth/sign-in/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ email, password }),
       })
 
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Server didn't return JSON");
+      }
+
       if (response.ok) {
         const data = await response.json()
+        console.log('Login response:', data)
+        
+        if (data.token) {
+          localStorage.setItem('auth-token', data.token)
+          console.log('Token stored:', data.token.substring(0, 20) + '...')
+        }
+        
         setUser(data.user)
         setShowAuth(false)
         setEmail('')
         setPassword('')
       } else {
-        setAuthError('Invalid credentials')
+        try {
+          const errorData = await response.json()
+          setAuthError(errorData.error || errorData.message || 'Invalid credentials')
+        } catch {
+          setAuthError(`Login failed with status ${response.status}`)
+        }
       }
     } catch (err) {
-      setAuthError('Login failed')
+      console.error('Login error:', err)
+      setAuthError(err.message || 'Login failed')
     } finally {
       setAuthLoading(false)
     }
@@ -86,7 +122,6 @@ export default function Page() {
     setAuthLoading(true)
     setAuthError('')
     
-    // Validate passwords match
     if (password !== confirmPassword) {
       setAuthError('Passwords do not match')
       setAuthLoading(false)
@@ -103,6 +138,11 @@ export default function Page() {
 
       if (response.ok) {
         const data = await response.json()
+        
+        if (data.token) {
+          localStorage.setItem('auth-token', data.token)
+        }
+        
         setUser(data.user)
         setShowAuth(false)
         setEmail('')
@@ -126,7 +166,9 @@ export default function Page() {
         method: 'POST',
         credentials: 'include'
       })
+      localStorage.removeItem('auth-token')
       setUser(null)
+      setProducts([])
     } catch (err) {
       console.error('Logout failed', err)
     }
@@ -138,20 +180,6 @@ export default function Page() {
     setConfirmPassword('')
   }
 
-  const fetchProducts = async () => {
-    setLoading(true)
-    setError(null)
-    setSearchMode(false)
-    try {
-      const data = await getAllProducts()
-      setProducts(data)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handleSearch = async (searchTerm, searchType) => {
     setLoading(true)
     setError(null)
@@ -159,10 +187,10 @@ export default function Page() {
       let data
       if (searchType === "id") {
         data = await getProductById(searchTerm)
-        setProducts([data])
+        setProducts(data)
       } else {
         data = await getProductByName(searchTerm)
-        setProducts([data])
+        setProducts(data)
       }
       setSearchMode(true)
     } catch (err) {

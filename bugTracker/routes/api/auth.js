@@ -7,7 +7,6 @@ import debug from 'debug';
 
 const prisma = new PrismaClient();
 
-const debugCreate = debug('auth:create');
 const debugLogin = debug('auth:login');
 
 export const authRouter = express.Router();

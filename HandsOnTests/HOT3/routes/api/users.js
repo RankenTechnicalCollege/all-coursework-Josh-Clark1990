@@ -1,6 +1,7 @@
 import express from 'express';
 import { getDb } from '../../database.js';
 import { ObjectId } from 'mongodb';
+import { hasRole } from  '../../middleware/hasRole.js';
 import { auth } from '../../middleware/auth.js';
 import { userIdSchema, userUpdateSchema } from '../../validation/userSchema.js';
 import { isAuthenticated } from '../../middleware/isAuthenticated.js';
@@ -10,7 +11,7 @@ const router = express.Router();
 
 
 //Get all users-------------------------------------------------------------------------------------------------------------------
-router.get('/', isAuthenticated, async (req, res) => {
+router.get('/', hasRole('admin'), async (req, res) => {
   try {
     const db = await getDb();
     const users = await db.collection('users').find().toArray();
@@ -26,7 +27,7 @@ router.get('/', isAuthenticated, async (req, res) => {
 });
 
 //Get user by ID---------------------------------------------------------------------------------------------------------------------
-router.get('/:id', isAuthenticated, validate(userIdSchema, 'params'), async (req, res) => {
+router.get('/:id', isAuthenticated, hasRole('admin'), validate(userIdSchema, 'params'), async (req, res) => {
   try {
     const db = await getDb();
     const { id } = req.params;

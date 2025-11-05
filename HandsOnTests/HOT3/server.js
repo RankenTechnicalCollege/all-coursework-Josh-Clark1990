@@ -10,30 +10,22 @@ import { toNodeHandler } from 'better-auth/node';
 
 const app = express();
 
-app.use(express.json());
-app.use(cookieParser);
-app.use(express.urlencoded({ extended: true }));
 app.use(cors({
   origin: 'http://localhost:3000',
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'], 
+  exposedHeaders: ['Set-Cookie'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
-// Better-auth routes using proper Node handler - MOVED BEFORE session middleware
+app.use(express.json());
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
+
+// Better-auth routes
 app.use('/api/auth', toNodeHandler(auth));
-
-
-// Add session middleware to attach user to req
-app.use(async (req, res, next) => {
-  try {
-    const session = await auth.api.getSession({ headers: req.headers });
-    if (session) {
-      req.user = session.user;
-    }
-  } catch (error) {
-    // No session, continue without user
-  }
-  next();
-});
 
 app.use('/api/products', productsRouter);
 app.use('/api/users', usersRouter);
