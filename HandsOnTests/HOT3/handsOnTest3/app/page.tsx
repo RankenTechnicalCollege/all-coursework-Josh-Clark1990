@@ -181,25 +181,25 @@ export default function Page() {
   }
 
   const handleSearch = async (searchTerm, searchType) => {
-    setLoading(true)
-    setError(null)
-    try {
-      let data
-      if (searchType === "id") {
-        data = await getProductById(searchTerm)
-        setProducts(data)
-      } else {
-        data = await getProductByName(searchTerm)
-        setProducts(data)
-      }
-      setSearchMode(true)
-    } catch (err) {
-      setError(err.message)
-      setProducts([])
-    } finally {
-      setLoading(false)
+  setLoading(true)
+  setError(null)
+  try {
+    let data
+    if (searchType === "id") {
+      data = await getProductById(searchTerm)
+      setProducts(data ? (Array.isArray(data) ? data : [data]) : [])
+    } else {
+      data = await getProductByName(searchTerm)
+      setProducts(data ? (Array.isArray(data) ? data : [data]) : [])
     }
+    setSearchMode(true)
+  } catch (err) {
+    setError(err.message)
+    setProducts([])
+  } finally {
+    setLoading(false)
   }
+}
 
   const handleCreate = async (productData) => {
     setLoading(true)

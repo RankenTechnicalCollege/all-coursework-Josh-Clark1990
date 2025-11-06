@@ -15,30 +15,59 @@ router.get('/', async (req, res) => {
     const db = await getDb();
     const productsCollection = db.collection('products');
 
-    // const { keywords, category, maxPrice, minPrice, sortBy } = req.query;
+    const { keywords, category, maxPrice, minPrice, sortBy, order, page, limit } = req.query;
 
-    // const pageNum = parseInt(page) || 1;
-    // const limitNum = parseInt(limit) || 0;
-    // const skip = limitNum > 0 ? (pageNum -1) * limitNum: 0;
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 5;
+    const skip = limitNum > 0 ? (pageNum - 1) * limitNum : 0;
 
-    // const filter = {};
-    // if(keywords) filter.$text = { $search: keywords };
-    // if (category) filter.category = category;
+    const filter = {};
+    
+    if (keywords) {
+      filter.name = { $regex: keywords, $options: 'i' }; // Fixed: was using minus sign instead of equals
+    }
 
-    // if(minPrice || maxPrice){
-      
-    // }
+    if (category) {
+      filter.category = category;
+    }
 
-    // const sortDirection = order === "name" ? -1: 1;
-    // const sortBy = sortBy ? { [sortBy]: sortDirection} : { category: 1};
+    if (minPrice || maxPrice) {
+      filter.price = {};
+      if (minPrice) filter.price.$gte = parseFloat(minPrice);
+      if (maxPrice) filter.price.$lte = parseFloat(maxPrice);
+    }
 
-    const products = await productsCollection.find({}).toArray();
+    let sort = {};
+    if (sortBy) {
+      const sortDirection = order === 'desc' ? -1 : 1;
+      sort[sortBy] = sortDirection;
+    } else {
+      sort = { category: 1 };
+    }
+
+    const products = await productsCollection
+      .find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNum)
+      .toArray();
+
+    
+    const totalCount = await productsCollection.countDocuments(filter);
 
     if (!products || products.length === 0) {
       return res.status(404).json({ error: 'No products found' });
     }
 
-    res.status(200).json(products);
+    res.status(200).json({
+      products,
+      pagination: {
+        currentPage: pageNum,
+        totalPages: limitNum > 0 ? Math.ceil(totalCount / limitNum) : 1,
+        totalItems: totalCount,
+        itemsPerPage: limitNum
+      }
+    });
   } catch (err) {
     console.error('Error fetching products:', err);
     res.status(500).json({ error: err.message || 'Internal server error' });

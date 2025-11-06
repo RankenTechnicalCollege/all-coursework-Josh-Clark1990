@@ -23,7 +23,8 @@ export const getAllProducts = async () => {
     credentials: 'include',
     headers: getAuthHeaders()
   })
-  return handleResponse(response)
+  const data = await handleResponse(response)
+  return data.products || []
 }
 
 export const getProductById = async (id: string) => {
