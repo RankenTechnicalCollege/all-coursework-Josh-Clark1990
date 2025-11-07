@@ -3,19 +3,18 @@
 import { useState, useEffect } from "react"
 import ProductList from "@/components/ProductList"
 import ProductForm from "@/components/ProductForm"
-import SearchBar from "@/components/SearchBar"
+import SearchBar, { SearchFilters } from "@/components/SearchBar"
 import {
   getAllProducts,
   createProduct,
   updateProduct,
   deleteProduct,
-  getProductById,
-  getProductByName,
 } from "@/lib/api"
 import "@/styles/app.css"
 
 export default function Page() {
   const [products, setProducts] = useState([])
+  const [pagination, setPagination] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [editingProduct, setEditingProduct] = useState(null)
@@ -33,16 +32,25 @@ export default function Page() {
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
 
-  // ✅ Define functions BEFORE useEffect
-  const fetchProducts = async () => {
+  const fetchProducts = async (filters?: SearchFilters) => {
     setLoading(true)
     setError(null)
-    setSearchMode(false)
+    setSearchMode(!!filters)
     try {
-      const data = await getAllProducts()
-      setProducts(data)
+      // Always pass default pagination values if no filters provided
+      const searchFilters = filters || {
+        page: 1,
+        limit: 10,
+        sortBy: 'category' as const,
+        order: 'asc' as const
+      }
+      const data = await getAllProducts(searchFilters)
+      setProducts(data.products || [])
+      setPagination(data.pagination || null)
     } catch (err) {
       setError(err.message)
+      setProducts([])
+      setPagination(null)
     } finally {
       setLoading(false)
     }
@@ -64,7 +72,6 @@ export default function Page() {
     }
   }
 
-  // ✅ useEffect NOW comes after function definitions
   useEffect(() => {
     fetchProducts()
     checkAuth()
@@ -180,26 +187,13 @@ export default function Page() {
     setConfirmPassword('')
   }
 
-  const handleSearch = async (searchTerm, searchType) => {
-  setLoading(true)
-  setError(null)
-  try {
-    let data
-    if (searchType === "id") {
-      data = await getProductById(searchTerm)
-      setProducts(data ? (Array.isArray(data) ? data : [data]) : [])
-    } else {
-      data = await getProductByName(searchTerm)
-      setProducts(data ? (Array.isArray(data) ? data : [data]) : [])
-    }
-    setSearchMode(true)
-  } catch (err) {
-    setError(err.message)
-    setProducts([])
-  } finally {
-    setLoading(false)
+  const handleSearch = async (filters: SearchFilters) => {
+    await fetchProducts(filters)
   }
-}
+
+  const handleReset = () => {
+    fetchProducts()
+  }
 
   const handleCreate = async (productData) => {
     setLoading(true)
@@ -335,7 +329,12 @@ export default function Page() {
 
       <main className="app-main">
         <div className="controls">
-          <SearchBar onSearch={handleSearch} onReset={fetchProducts} />
+          <SearchBar 
+            onSearch={handleSearch} 
+            onReset={handleReset}
+            currentPage={pagination?.currentPage || 1}
+            totalPages={pagination?.totalPages || 1}
+          />
           <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
             {showForm ? "Cancel" : "Add New Product"}
           </button>
@@ -344,6 +343,12 @@ export default function Page() {
         {error && (
           <div className="error-message">
             <strong>Error:</strong> {error}
+          </div>
+        )}
+
+        {pagination && (
+          <div style={{ textAlign: 'center', margin: '1rem 0', color: '#666' }}>
+            Showing {products.length} of {pagination.totalItems} products
           </div>
         )}
 
