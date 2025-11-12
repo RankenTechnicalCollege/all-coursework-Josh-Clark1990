@@ -1,4 +1,4 @@
-export default function CartItem(item){
+export default function CartItem({item, onNameChange, onAddQuantity, onSubtractQuantity}){
  
 
 

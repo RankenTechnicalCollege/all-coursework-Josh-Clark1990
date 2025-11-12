@@ -25,10 +25,15 @@ export async function isAuthenticated(req, res, next) {
     console.log('3. User from Better Auth:', session.user.email);
     console.log('4. User role from Better Auth:', session.user.role);
 
-    // ✅ Get permissions from roles collection
+    // ✅ Normalize role(s) to an array and get permissions from roles collection
     const db = await getDb();
-    const userRole = session.user.role || 'user';
-    const roleDoc = await db.collection('roles').findOne({ role: userRole });
+    const rawRole = session.user.role;
+
+    // Ensure userRoles is always an array of strings
+    const userRoles = Array.isArray(rawRole) ? rawRole : [rawRole || 'user'];
+
+    // Look up the first matching role document (supports multiple roles)
+    const roleDoc = await db.collection('roles').findOne({ role: { $in: userRoles } });
     const permissions = roleDoc?.permissions || {};
 
     console.log('5. Role document found:', roleDoc ? 'YES' : 'NO');
@@ -39,9 +44,9 @@ export async function isAuthenticated(req, res, next) {
       id: session.user.id,
       email: session.user.email,
       name: session.user.name,
-      userRoles: [userRole],
+      userRoles: userRoles,
       permissions: permissions,
-      role: userRole
+      role: userRoles
     };
 
     console.log('7. ✅ Authentication successful');

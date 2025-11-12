@@ -54,7 +54,10 @@ export default function CartList(){
       <br />
       <button type='button' className'btn btn primary mb4' onClick={() => setItems([...items, {id:nanoid(), name:'', quantity:1}])}>Add Item</button>
         {items.map(item =>
-        <CartItem item={item} key={item.id}/>
+        <CartItem item={item} key={item.id} 
+        onNameChange = {(evt) => onNameChange(evt, item)}
+        onAddQuantity = {() => onAddQuantity(item)}
+        onSubtractQuantity = {() => onSubtractQuantity(item)}/>
       )}
     
   )

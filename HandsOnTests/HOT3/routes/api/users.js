@@ -11,10 +11,10 @@ const router = express.Router();
 
 
 //Get all users-------------------------------------------------------------------------------------------------------------------
-router.get('/', hasRole('admin'), async (req, res) => {
+router.get('/', isAuthenticated, hasRole('admin'), async (req, res) => {
   try {
     const db = await getDb();
-    const users = await db.collection('users').find().toArray();
+    const users = await db.collection('user').find().toArray();
 
     if (!users || users.length === 0) {
       return res.status(404).json({ error: 'No users found' });
