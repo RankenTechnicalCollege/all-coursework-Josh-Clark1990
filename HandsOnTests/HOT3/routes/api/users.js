@@ -9,12 +9,14 @@ import { validate } from '../../middleware/validator.js';
 
 const router = express.Router();
 
+const isValidObjectId = (val) => typeof val === 'string' && /^[0-9a-fA-F]{24}$/.test(val);
+
 
 //Get all users-------------------------------------------------------------------------------------------------------------------
 router.get('/', isAuthenticated, hasRole('admin'), async (req, res) => {
   try {
-    const db = await getDb();
-    const users = await db.collection('user').find().toArray();
+  const db = await getDb();
+  const users = await db.collection('users').find().toArray();
 
     if (!users || users.length === 0) {
       return res.status(404).json({ error: 'No users found' });
@@ -31,8 +33,19 @@ router.get('/:id', isAuthenticated, hasRole('admin'), validate(userIdSchema, 'pa
   try {
     const db = await getDb();
     const { id } = req.params;
-    
-    const user = await db.collection('user').findOne({ _id: new ObjectId(id) });
+
+    let user = null;
+    if (isValidObjectId(id)) {
+      try {
+        user = await db.collection('users').findOne({ _id: new ObjectId(id) });
+      } catch (e) {
+        console.warn('users/:id - ObjectId lookup failed, falling back to id field', e.message);
+      }
+    }
+
+    if (!user) {
+      user = await db.collection('users').findOne({ id });
+    }
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -49,8 +62,23 @@ router.get('/me', isAuthenticated, async (req, res) => {
   try {
     const db = await getDb();
     const userId = req.user.id; // Get the logged-in user's ID
-    
-    const user = await db.collection('user').findOne({ _id: new ObjectId(userId) });
+
+    let user = null;
+    if (isValidObjectId(userId)) {
+      try {
+        user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+      } catch (e) {
+        console.warn('users/me - ObjectId lookup failed, falling back', e.message);
+      }
+    }
+
+    if (!user && userId) {
+      user = await db.collection('users').findOne({ id: userId });
+    }
+
+    if (!user && req.user?.email) {
+      user = await db.collection('users').findOne({ email: req.user.email });
+    }
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -68,13 +96,26 @@ router.patch('/me', isAuthenticated, validate(userUpdateSchema, 'body'), async (
     const db = await getDb();
     const userId = req.user.id; 
     const updates = req.body || {};
-    
+
     updates.lastUpdated = new Date();
 
-    const result = await db.collection('user').updateOne(
-      { _id: new ObjectId(userId) },
-      { $set: updates }
-    );
+    let filter = null;
+    if (isValidObjectId(userId)) {
+      try {
+        filter = { _id: new ObjectId(userId) };
+      } catch (e) {
+        console.warn('users PATCH /me - invalid ObjectId, falling back', e.message);
+        filter = { id: userId };
+      }
+    } else if (userId) {
+      filter = { id: userId };
+    } else if (req.user?.email) {
+      filter = { email: req.user.email };
+    } else {
+      return res.status(400).json({ error: 'Cannot determine user to update' });
+    }
+
+    const result = await db.collection('users').updateOne(filter, { $set: updates });
 
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'User not found' });
