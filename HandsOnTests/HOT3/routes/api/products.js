@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
     const filter = {};
     
     if (keywords) {
-      filter.name = { $regex: keywords, $options: 'i' }; // Fixed: was using minus sign instead of equals
+      filter.name = { $regex: keywords, $options: 'i' };
     }
 
     if (category) {
