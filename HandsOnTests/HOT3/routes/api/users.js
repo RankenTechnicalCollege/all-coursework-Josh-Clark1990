@@ -32,7 +32,7 @@ router.get('/:id', isAuthenticated, hasRole('admin'), validate(userIdSchema, 'pa
     const db = await getDb();
     const { id } = req.params;
     
-    const user = await db.collection('users').findOne({ _id: new ObjectId(id) });
+    const user = await db.collection('user').findOne({ _id: new ObjectId(id) });
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -50,7 +50,7 @@ router.get('/me', isAuthenticated, async (req, res) => {
     const db = await getDb();
     const userId = req.user.id; // Get the logged-in user's ID
     
-    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+    const user = await db.collection('user').findOne({ _id: new ObjectId(userId) });
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -71,7 +71,7 @@ router.patch('/me', isAuthenticated, validate(userUpdateSchema, 'body'), async (
     
     updates.lastUpdated = new Date();
 
-    const result = await db.collection('users').updateOne(
+    const result = await db.collection('user').updateOne(
       { _id: new ObjectId(userId) },
       { $set: updates }
     );
