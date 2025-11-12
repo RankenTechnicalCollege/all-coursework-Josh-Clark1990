@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { nanoid } from 'nanoid'; 
+import { CartItem } from './cartItem';
 
 export default function CartList(){
   
@@ -15,26 +16,48 @@ export default function CartList(){
         itemCount += item.quantity;
       }
     }
+
+    function onNameChange(evt, item){
+      const newItems = [...items];
+      const index = items.indexOf(item);
+      newItems[index].name = evt.target.value;
+      setItems(newItems);
+    }
+
+    function onAddQuantity(item){
+      const newQuantity = item.quantity + 1;
+      if(newQuantity <= 10){}
+        const newItems = [...items];
+        const index = items.indexOf(item);
+        newItems[index].quantity ++;
+        setItems(newItems);
+      }
+    }
+
+    function onSubtractQuantity(item){
+      const newQuantity = item.quantity -1;
+        if(newQuantity > 0){
+          const newItems = [...items];
+          const index = items.indexOf(item)
+          newItems[index].quantity --;
+          setItems(newItems);
+      } else{
+        setItems(items.filter(i => i.id !== item.id));
+      }
+    }  
   
-  return(   //59 minutes into code along
+  return(
   <>
     <div className ='container'>
       <span className ='fs-1 text-primary margin-4'>Shopping Cart</span>
-      <span className ='fs-3 badge rounded-circle text-bg-primary margin-3'>Item Count</span>
+      <span className ='fs-3 badge rounded-circle text-bg-primary '>{itemCount > 0 ? itemCount : "Please Add Items To Cart"} </span>
+      <br />
+      <button type='button' className'btn btn primary mb4' onClick={() => setItems([...items, {id:nanoid(), name:'', quantity:1}])}>Add Item</button>
         {items.map(item =>
-        <div className='row' key={item.id}>
-          <div className ='col-4'>
-            <input type='text' className='form-control' value = {item.name}/>
-          </div>
-          <div className ='col-1'>
-              <span>{item.quantity}</span>
-          </div>
-          <div className ='col-4'>
-            <button className='btn btn-danger rounder-circle margin-3'>-</button>
-            <button className= 'btn btnSuccess rounder-circle'>+</button>
-          </div>
-          </div>
+        <CartItem item={item} key={item.id}/>
       )}
-          </>
+    
   )
-};
+  </div>
+  </>
+)};

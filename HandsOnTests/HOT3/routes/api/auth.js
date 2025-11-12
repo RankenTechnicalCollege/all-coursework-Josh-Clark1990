@@ -8,7 +8,7 @@ const authRouter = express.Router();
 
 //Register new user---------------------------------------------------------------------------------------------------------------
 authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => {
-  const { email, password, confirmPassword, fullName } = req.body;
+  const { email, password, confirmPassword, fullName} = req.body;
 
   if (password !== confirmPassword) {
     return res.status(400).json({ error: 'Passwords do not match' }); 
@@ -27,12 +27,14 @@ authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => 
       where: { id: result.user.id },
       update: {
         name: fullName,
-        email
+        email,
+        role: ['admin']
       },
       create: {
         id: result.user.id,
         email,
-        name: fullName
+        name: fullName,
+        role: ['admin']
       }
     });
 
