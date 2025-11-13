@@ -5,6 +5,7 @@ import { productCreateSchema, productIdSchema, productNameSchema, productUpdateS
 import { validate } from '../../middleware/validator.js';
 import { isAuthenticated } from '../../middleware/isAuthenticated.js'; 
 import { hasRole } from '../../middleware/hasRole.js';
+import { validId } from '../../middleware/validId.js';
 
 const router = express.Router();
 
@@ -15,10 +16,10 @@ router.get('/', async (req, res) => {
     const db = await getDb();
     const productsCollection = db.collection('products');
 
-    const { keywords, category, maxPrice, minPrice, sortBy, order, page, limit } = req.query;
+    const { keywords, category, maxPrice, minPrice, sortBy, page, pageSize,} = req.query;
 
     const pageNum = parseInt(page) || 1;
-    const limitNum = parseInt(limit) || 5;
+    const limitNum = parseInt(pageSize) || 5;
     const skip = limitNum > 0 ? (pageNum - 1) * limitNum : 0;
 
     const filter = {};
@@ -38,15 +39,19 @@ router.get('/', async (req, res) => {
     }
 
     let sort = {};
-    if (sortBy) {
-      const sortDirection = order === 'desc' ? -1 : 1;
-      sort[sortBy] = sortDirection;
-    } else {
-      sort = { category: 1 };
-    }
+      if (sortBy === 'lowestPrice') {
+        sort = { price: 1, name: 1 };
+      } else if (sortBy === 'category') {
+        sort = { category: 1, name: 1 };
+      } else if (sortBy === 'newest') {
+        sort = { createdAt: -1, name: 1 };
+      } else if (sortBy === '' || sortBy === 'name') {
+        sort = { name: 1 };
+      }
 
     const products = await productsCollection
       .find(filter)
+      .project({ _id: 1, name: 1, description: 1, price: 1, category: 1, createdAt: 1, lastUpdated: 1 })
       .sort(sort)
       .skip(skip)
       .limit(limitNum)
@@ -60,12 +65,20 @@ router.get('/', async (req, res) => {
     }
 
     res.status(200).json({
-      products,
+      products: products.map(product => ({
+        _id: product._id?.toString?.() || product._id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        category: product.category,
+        createdAt: product.createdAt,
+        lastUpdated: product.lastUpdated
+      })),
       pagination: {
         currentPage: pageNum,
         totalPages: limitNum > 0 ? Math.ceil(totalCount / limitNum) : 1,
         totalItems: totalCount,
-        itemsPerPage: limitNum
+        itemsPerPage: pageSize
       }
     });
   } catch (err) {
@@ -76,14 +89,10 @@ router.get('/', async (req, res) => {
 
 
 //get product by id--------------------------------------------------------------------------------------------------------
-router.get('/:id', isAuthenticated, hasRole('admin'), validate(productIdSchema),  async (req, res) => {
+router.get('/:id', isAuthenticated, validId, hasRole('admin'), async (req, res) => {
   try {
     const db = await getDb();
     const productId = req.params.id;
-
-    if (!ObjectId.isValid(productId)) {
-      return res.status(400).json({ error: 'Invalid product ID' });
-    }
 
     const product = await db
       .collection('products')
@@ -93,7 +102,15 @@ router.get('/:id', isAuthenticated, hasRole('admin'), validate(productIdSchema),
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    res.status(200).json(product);
+    res.status(200).json({
+      _id: product._id?.toString?.() || product._id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      category: product.category,
+      createdAt: product.createdAt,
+      lastUpdated: product.lastUpdated
+    });
   } catch (err) {
     console.error('Error fetching product by id:', err);
     res.status(500).json({ error: err.message || 'Internal server error' });
