@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import { auth } from './middleware/auth.js';
 import { PrismaClient } from '@prisma/client';
 import express from 'express';
+import { toNodeHandler } from 'better-auth/node';
 
 import { authRouter } from './routes/api/auth.js';
 import { usersRouter } from './routes/api/users.js';
@@ -22,7 +23,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(cors({
   origin: [
-    "http://localhost:8080",
+    "http://localhost:5173",
     "http://localhost:5000",
     "https://bugtracker-1019735204077.us-central1.run.app"
   ],
@@ -57,8 +58,10 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// API routes
 app.use('/api/auth', authRouter);
+
+// API routes
+app.all('/api/auth/*', toNodeHandler(auth));
 app.use('/api/users', usersRouter);
 app.use('/api/bugs', bugsRouter);
 app.use('/api/bugs', commentsRouter);

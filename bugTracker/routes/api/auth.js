@@ -115,19 +115,19 @@ authRouter.post('/sign-in/email', validate(loginSchema), async (req, res) => {
 
     // Set auth cookie - Better Auth should handle this automatically
     // but we can ensure it's set correctly
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 1000,
-      path: '/'  // IMPORTANT: Add path
-    };
+    // const cookieOptions = {
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === 'production',
+    //   sameSite: 'lax',
+    //   maxAge: 60 * 60 * 1000,
+    //   path: '/'  // IMPORTANT: Add path
+    // };
     
-    debugLogin('Setting cookie with token:', result.token.substring(0, 10) + '...');
-    debugLogin('Cookie options:', cookieOptions);
+    // debugLogin('Setting cookie with token:', result.token.substring(0, 10) + '...');
+    // debugLogin('Cookie options:', cookieOptions);
     
     // Set the cookie
-    res.cookie('better-auth.session_token', result.token, cookieOptions);
+    // res.cookie('better-auth.session_token', result.token, cookieOptions);
 
     // Debug: Verify session was created in database
     const dbSession = await prisma.session.findUnique({

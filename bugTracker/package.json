@@ -13,7 +13,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
-    "dev": "nodemon --env-file .env index.js"
+    "dev": "concurrently \"nodemon --env-file .env index.js\" \"npm run dev --prefix frontEnd\"",
+    "dev:backend": "nodemon --env-file .env index.js",
+    "dev:frontend": "npm run dev --prefix frontEnd"
   },
   "dependencies": {
     "@google-cloud/secret-manager": "^6.1.1",
@@ -35,6 +37,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.5.2",
+    "concurrently": "^9.2.1",
     "typescript": "^5.9.3"
   },
   "engines": {
