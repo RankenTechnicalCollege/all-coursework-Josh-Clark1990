@@ -1,19 +1,56 @@
-export default function CartItem({item, onNameChange, onAddQuantity, onSubtractQuantity}){
- 
+interface Item {
+  id: string;
+  name: string;
+  quantity: number;
+}
 
+interface CartItemProps {
+  item: Item;
+  onNameChange: (evt: React.ChangeEvent<HTMLInputElement>, item: Item) => void;
+  onAddQuantity: (item: Item) => void;
+  onSubtractQuantity: (item: Item) => void;
+}
 
-  return(
-          <div className='row' key={item.id}>
-          <div className ='col-4'>
-            <input type='text' className={item.name.length > 0 ? 'form-control is-valid': 'fcrm-control is-invalid' } value = {item.name} onChange={(evt) => onNameChange(evt,item)}/>
-          </div>
-          <div className ='col-1'>
-              <span>{item.quantity}</span>
-          </div>
-          <div className ='col-4'>
-            <button className='btn btn-danger rounder-circle margin-3' disabled = {item.quantity <= 0 ? true : false} onClick={() => onSubtractQuantity(item)}>--</button>
-            <button className='btn btnSuccess rounder-circle' disabled = {item.quantity >= 10 ? true : false}  onClick={() => onAddQuantity(item)}>+</button>
-          </div>
-          </div>
-
+export default function CartItem({
+  item,
+  onNameChange,
+  onAddQuantity,
+  onSubtractQuantity,
+}: CartItemProps) {
+  return (
+    <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-sm mb-3" key={item.id}>
+      <div className="flex-1">
+        <input
+          type="text"
+          className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+            item.name.length > 0
+              ? 'border-green-500 focus:ring-green-500'
+              : 'border-red-500 focus:ring-red-500'
+          }`}
+          value={item.name}
+          onChange={(evt) => onNameChange(evt, item)}
+          placeholder="Item name"
+        />
+      </div>
+      <div className="w-16 text-center">
+        <span className="text-lg font-semibold text-gray-700">{item.quantity}</span>
+      </div>
+      <div className="flex gap-2">
+        <button
+          className="w-10 h-10 bg-red-500 text-white rounded-full hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          disabled={item.quantity <= 0}
+          onClick={() => onSubtractQuantity(item)}
+        >
+          -
+        </button>
+        <button
+          className="w-10 h-10 bg-green-500 text-white rounded-full hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          disabled={item.quantity >= 10}
+          onClick={() => onAddQuantity(item)}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
 }
