@@ -1,6 +1,6 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
-import { getDb } from '../../database.js';  // Add this import
+import { mongoClient } from '../../middleware/auth.js';
+import { getDb } from '../../database.js';
 import debug from 'debug';
 import {
     bugCreateSchema,
@@ -15,8 +15,6 @@ import { isAuthenticated } from '../../middleware/isAuthenticated.js';
 import { hasPermissions } from '../../middleware/hasPermissions.js';
 import { hasRole } from '../../middleware/hasRole.js';
 import { hasAnyRole } from '../../middleware/hasAnyRole.js';
-
-const prisma = new PrismaClient();
 
 // Debug namespaces
 const debugList = debug('bugs:list');
@@ -53,63 +51,67 @@ router.get('/', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['dev
     const limitNum = parseInt(limit) || 10;
     const skip = (pageNum - 1) * limitNum;
 
-    // Build where clause
-    const where = {};
+    // Build MongoDB query
+    const query = {};
     
     if (keywords) {
-      where.OR = [
-        { title: { contains: keywords, mode: 'insensitive' } },
-        { description: { contains: keywords, mode: 'insensitive' } }
+      query.$or = [
+        { title: { $regex: keywords, $options: 'i' } },
+        { description: { $regex: keywords, $options: 'i' } }
       ];
     }
     
     if (classification) {
-      where.classification = classification;
+      query.classification = classification;
     }
     
     if (closed !== undefined) {
-      where.closed = closed === 'true';
+      query.closed = closed === 'true';
     }
 
     if (minAge || maxAge) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      where.createdAt = {};
+      query.createdAt = {};
       if (maxAge) {
-        where.createdAt.gte = new Date(today.getTime() - maxAge * 24 * 60 * 60 * 1000);
+        query.createdAt.$gte = new Date(today.getTime() - maxAge * 24 * 60 * 60 * 1000);
       }
       if (minAge) {
-        where.createdAt.lte = new Date(today.getTime() - minAge * 24 * 60 * 60 * 1000);
+        query.createdAt.$lte = new Date(today.getTime() - minAge * 24 * 60 * 60 * 1000);
       }
     }
 
     // Sorting
     const allowedSortFields = ['classification', 'title', 'assignedUserName', 'authorOfBug', 'statusLabel', 'createdAt'];
     const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
-    const sortDirection = order === 'desc' ? 'desc' : 'asc';
-    const orderBy = { [sortField]: sortDirection };
+    const sortDirection = order === 'desc' ? -1 : 1;
+    const sort = { [sortField]: sortDirection };
+
+    // Projection (select fields)
+    const projection = {
+      id: 1,
+      title: 1,
+      description: 1,
+      stepsToReproduce: 1,
+      statusLabel: 1,
+      classification: 1,
+      assignedUserName: 1,
+      authorOfBug: 1,
+      createdAt: 1,
+      lastUpdated: 1,
+      closed: 1
+    };
 
     // Query
-    const bugs = await prisma.bug.findMany({
-      where,
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        stepsToReproduce: true,
-        statusLabel: true,
-        classification: true,
-        assignedUserName: true,
-        authorOfBug: true,
-        createdAt: true,
-        lastUpdated: true,
-        closed: true
-      },
-      orderBy,
-      skip,
-      take: limitNum
-    });
+    const db = mongoClient.db();
+    const bugs = await db.collection('bug')
+      .find(query)
+      .project(projection)
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNum)
+      .toArray();
 
     if (!bugs.length) {
       return res.status(404).json({ error: 'No bugs found' });
@@ -130,24 +132,27 @@ router.get('/:bugId', isAuthenticated, hasPermissions('canViewData'), hasAnyRole
     const { bugId } = req.params;
     debugGet(`Fetching bug with ID: ${bugId}`);
 
-    const bug = await prisma.bug.findUnique({
-      where: { id: bugId },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        stepsToReproduce: true,
-        authorOfBug: true,
-        statusLabel: true,
-        classification: true,
-        createdAt: true,
-        lastUpdated: true,
-        assignedUser: true,
-        assignedUserName: true,
-        closed: true,
-        closedDate: true
+    const db = mongoClient.db();
+    const bug = await db.collection('bug').findOne(
+      { id: bugId },
+      {
+        projection: {
+          id: 1,
+          title: 1,
+          description: 1,
+          stepsToReproduce: 1,
+          authorOfBug: 1,
+          statusLabel: 1,
+          classification: 1,
+          createdAt: 1,
+          lastUpdated: 1,
+          assignedUser: 1,
+          assignedUserName: 1,
+          closed: 1,
+          closedDate: 1
+        }
       }
-    });
+    );
 
     if (!bug) {
       return res.status(404).json({ error: 'Bug not found' });
@@ -168,23 +173,31 @@ router.post('/', isAuthenticated, hasPermissions('canCreateBug'), hasAnyRole(['d
     const { title, description, stepsToReproduce, authorOfBug } = req.body;
     debugCreate('Creating new bug');
 
-    const newBug = await prisma.bug.create({
-      data: {
-        title,
-        description,
-        stepsToReproduce,
-        authorOfBug,
-        status: false,
-        statusLabel: 'open'
-      }
-    });
+    const db = mongoClient.db();
+    
+    // Generate a unique ID (you can use a better ID generation method)
+    const bugId = `bug_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const newBug = {
+      id: bugId,
+      title,
+      description,
+      stepsToReproduce,
+      authorOfBug,
+      status: false,
+      statusLabel: 'open',
+      createdAt: new Date(),
+      lastUpdated: new Date()
+    };
+
+    await db.collection('bug').insertOne(newBug);
 
     debugCreate(`Bug created with ID: ${newBug.id}`);
 
     // Log edit
     try {
-      const db = await getDb();
-      await db.collection('edits').insertOne({
+      const editsDb = await getDb();
+      await editsDb.collection('edits').insertOne({
         timestamp: new Date(),
         col: 'Bug',
         op: 'create',
@@ -216,15 +229,23 @@ router.patch('/:bugId', isAuthenticated, hasPermissions('canEditAnyBug'), hasAny
     const updates = req.body || {};
     debugUpdate(`Updating bug ${bugId}`);
 
-    const updatedBug = await prisma.bug.update({
-      where: { id: bugId },
-      data: updates
-    });
+    // Add lastUpdated timestamp
+    updates.lastUpdated = new Date();
+
+    const db = mongoClient.db();
+    const result = await db.collection('bug').updateOne(
+      { id: bugId },
+      { $set: updates }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Bug not found' });
+    }
 
     // Log edit
     try {
-      const db = await getDb();
-      await db.collection('edits').insertOne({
+      const editsDb = await getDb();
+      await editsDb.collection('edits').insertOne({
         timestamp: new Date(),
         col: 'Bug',
         op: 'update',
@@ -238,13 +259,10 @@ router.patch('/:bugId', isAuthenticated, hasPermissions('canEditAnyBug'), hasAny
 
     res.status(200).json({
       message: 'Bug updated successfully',
-      lastUpdated: updatedBug.lastUpdated
+      lastUpdated: updates.lastUpdated
     });
 
   } catch (err) {
-    if (err.code === 'P2025') {
-      return res.status(404).json({ error: 'Bug not found' });
-    }
     console.error('Update bug error:', err);
     res.status(500).json({ error: 'Invalid input', details: err.message });
   }
@@ -259,15 +277,22 @@ router.patch('/:bugId/classify', isAuthenticated, hasPermissions('canClassifyAny
     const { classification } = req.body;
     debugClassify(`Classifying bug ${bugId} as ${classification}`);
 
-    const updatedBug = await prisma.bug.update({
-      where: { id: bugId },
-      data: { classification }
-    });
+    const db = mongoClient.db();
+    const lastUpdated = new Date();
+    
+    const result = await db.collection('bug').updateOne(
+      { id: bugId },
+      { $set: { classification, lastUpdated } }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Bug not found' });
+    }
 
     // Log edit
     try {
-      const db = await getDb();
-      await db.collection('edits').insertOne({
+      const editsDb = await getDb();
+      await editsDb.collection('edits').insertOne({
         timestamp: new Date(),
         col: 'Bug',
         op: 'classify',
@@ -281,12 +306,9 @@ router.patch('/:bugId/classify', isAuthenticated, hasPermissions('canClassifyAny
 
     res.status(200).json({
       message: 'Bug classification updated',
-      lastUpdated: updatedBug.lastUpdated
+      lastUpdated
     });
   } catch (err) {
-    if (err.code === 'P2025') {
-      return res.status(404).json({ error: 'Bug not found' });
-    }
     console.error('Classify bug error:', err);
     res.status(500).json({ error: 'Invalid input', details: err.message });
   }
@@ -301,11 +323,13 @@ router.patch('/:bugId/assign', isAuthenticated, hasPermissions('canReassignAnyBu
     const { user_id } = req.body;
     debugAssign(`Assigning bug ${bugId} to user ${user_id}`);
 
+    const db = mongoClient.db();
+
     // Check if user exists
-    const user = await prisma.user.findUnique({
-      where: { id: user_id },
-      select: { givenName: true, familyName: true, name: true }
-    });
+    const user = await db.collection('user').findOne(
+      { id: user_id },
+      { projection: { givenName: 1, familyName: 1, name: 1 } }
+    );
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -315,38 +339,40 @@ router.patch('/:bugId/assign', isAuthenticated, hasPermissions('canReassignAnyBu
       ? `${user.givenName} ${user.familyName}`.trim()
       : user.name || 'Unknown';
 
-    // Update bug with assigned user
-    const updatedBug = await prisma.bug.update({
-      where: { id: bugId },
-      data: {
-        assignedUser: user_id,
-        assignedUserName: userFullName
-      }
-    });
+    const lastUpdated = new Date();
 
-    // Update user's assignedBugs array
-    await prisma.user.update({
-      where: { id: user_id },
-      data: {
-        assignedBugs: {
-          push: bugId
+    // Update bug with assigned user
+    const bugResult = await db.collection('bug').updateOne(
+      { id: bugId },
+      { 
+        $set: {
+          assignedUser: user_id,
+          assignedUserName: userFullName,
+          lastUpdated
         }
       }
-    });
+    );
+
+    if (bugResult.matchedCount === 0) {
+      return res.status(404).json({ error: 'Bug not found' });
+    }
+
+    // Update user's assignedBugs array
+    await db.collection('user').updateOne(
+      { id: user_id },
+      { $addToSet: { assignedBugs: bugId } } // Use $addToSet to avoid duplicates
+    );
 
     res.status(200).json({
       message: `Bug assigned to ${userFullName}`,
       bug: {
-        id: updatedBug.id,
+        id: bugId,
         assignedUser: user_id,
         assignedUserName: userFullName,
-        lastUpdated: updatedBug.lastUpdated
+        lastUpdated
       }
     });
   } catch (err) {
-    if (err.code === 'P2025') {
-      return res.status(404).json({ error: 'Bug not found' });
-    }
     console.error('Assign bug error:', err);
     res.status(500).json({ error: 'Failed to assign bug', details: err.message });
   }
@@ -360,24 +386,31 @@ router.patch('/:bugId/close', isAuthenticated, hasPermissions('canCloseAnyBug'),
     const { bugId } = req.params;
     debugClose(`Closing bug ${bugId}`);
 
-    const updatedBug = await prisma.bug.update({
-      where: { id: bugId },
-      data: {
-        status: true,
-        statusLabel: 'closed',
-        closed: true,
-        closedDate: new Date()
+    const db = mongoClient.db();
+    const lastUpdated = new Date();
+    
+    const result = await db.collection('bug').updateOne(
+      { id: bugId },
+      { 
+        $set: {
+          status: true,
+          statusLabel: 'closed',
+          closed: true,
+          closedDate: new Date(),
+          lastUpdated
+        }
       }
-    });
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Bug not found' });
+    }
 
     res.status(200).json({
       message: 'Bug closed',
-      lastUpdated: updatedBug.lastUpdated
+      lastUpdated
     });
   } catch (err) {
-    if (err.code === 'P2025') {
-      return res.status(404).json({ error: 'Bug not found' });
-    }
     console.error('Close bug error:', err);
     res.status(500).json({ error: 'Invalid input', details: err.message });
   }

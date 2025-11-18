@@ -1,26 +1,22 @@
 import dotenv from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { auth } from './middleware/auth.js';
-import { PrismaClient } from '@prisma/client';
+import { auth, mongoClient } from './middleware/auth.js';
 import express from 'express';
 import { toNodeHandler } from 'better-auth/node';
-
-import { authRouter } from './routes/api/auth.js';
 import { usersRouter } from './routes/api/users.js';
 import { bugsRouter } from './routes/api/bugs.js';
 import { commentsRouter } from './routes/api/comments.js';
 import { testRouter } from './routes/api/test.js';
 
 dotenv.config();
-const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+
 app.use(cors({
   origin: [
     "http://localhost:5173",
@@ -30,7 +26,13 @@ app.use(cors({
   credentials: true
 }));
 
-// ✅ Custom session check middleware (optional)
+// Better Auth routes
+app.all('/api/auth/*', toNodeHandler(auth));
+
+// Cookie parser
+app.use(cookieParser());
+
+// Custom session check middleware
 app.use(async (req, res, next) => {
   const token = req.cookies['better-auth.session_token'];
   if (token) {
@@ -40,8 +42,9 @@ app.use(async (req, res, next) => {
       });
       if (session?.user) {
         const sessionUser = session.user;
-        const prismaUser = await prisma.user.findUnique({ where: { id: sessionUser.id } });
-        const userRoles = prismaUser?.role ? [prismaUser.role] : [];
+        const db = mongoClient.db();
+        const user = await db.collection('user').findOne({ id: sessionUser.id });
+        const userRoles = user?.role ? [user.role] : ['developer'];
 
         req.user = {
           id: sessionUser.id,
@@ -58,10 +61,7 @@ app.use(async (req, res, next) => {
   next();
 });
 
-app.use('/api/auth', authRouter);
-
 // API routes
-app.all('/api/auth/*', toNodeHandler(auth));
 app.use('/api/users', usersRouter);
 app.use('/api/bugs', bugsRouter);
 app.use('/api/bugs', commentsRouter);
@@ -80,25 +80,24 @@ function shutdown(signal) {
   console.log(`\n⚡ Received ${signal}, shutting down gracefully...`);
   server.close(async () => {
     console.log('Server closed');
-    await prisma.$disconnect();
-    console.log('Prisma disconnected');
+    await mongoClient.close();
+    console.log('MongoDB disconnected');
     process.exit(0);
   });
 
-  // Force exit if still not closed after 10 seconds
   setTimeout(() => {
     console.warn('Forcing shutdown after timeout');
     process.exit(1);
-  }, 10000);
+  }, 5000);
 }
 
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
-  shutdown('uncaughtException');
+  process.exit(1);
 });
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled Rejection:', reason);
-  shutdown('unhandledRejection');
+  process.exit(1);
 });

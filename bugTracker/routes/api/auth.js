@@ -1,16 +1,8 @@
 import express from 'express';
-import { auth } from '../../middleware/auth.js';
+import { auth, mongoClient } from '../../middleware/auth.js';
 import { validate } from '../../middleware/validator.js';
 import { registerSchema, loginSchema} from '../../validation/userSchema.js';
-import { PrismaClient } from '@prisma/client';
-import debug from 'debug';
-
-const prisma = new PrismaClient();
-
-const debugLogin = debug('auth:login');
-
 export const authRouter = express.Router();
-
 
 // -----------------------------------------------------------------------------
 // Register new user
@@ -34,9 +26,8 @@ authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => 
 
     console.log('Signup result token:', result.token);
 
-    // Normalize role (accept either a string or an object like { name: 'technicalManager' })
+    // Normalize role
     const rawRole = typeof role === 'string' ? role : (role && role.name) ? role.name : 'developer';
-    // Map common camelCase or compact names to the spaced role names used in validation/role docs
     const roleMap = {
       technicalManager: 'technical manager',
       businessAnalyst: 'business analyst',
@@ -47,30 +38,27 @@ authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => 
 
     const roleName = roleMap[rawRole] || rawRole;
 
-    // 2. Upsert user in Prisma to ensure role exists
-    const prismaUser = await prisma.user.upsert({
-      where: { id: result.user.id },
-      update: {
-        givenName,
-        familyName,
-        role: roleName,
-        createdBugs: [],
-        assignedBugs: []
-      },
-      create: {
-        id: result.user.id,
-        email,
-        givenName,
-        familyName,
-        role: roleName,
-        createdBugs: [],
-        assignedBugs: []
+    // 2. Update user in MongoDB with additional fields
+    const db = mongoClient.db();
+    await db.collection('user').updateOne(
+      { id: result.user.id },
+      { 
+        $set: {
+          givenName,
+          familyName,
+          role: roleName,
+          createdBugs: [],
+          assignedBugs: []
+        }
       }
-    });
+    );
+
+    // Fetch the updated user
+    const updatedUser = await db.collection('user').findOne({ id: result.user.id });
 
     res.status(201).json({
       message: 'User registered successfully',
-      user: prismaUser,
+      user: updatedUser,
       token: result.token
     });
 
@@ -82,7 +70,6 @@ authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => 
     });
   }
 });
-
 
 // -----------------------------------------------------------------------------
 // Login
@@ -100,40 +87,20 @@ authRouter.post('/sign-in/email', validate(loginSchema), async (req, res) => {
     console.log('Login result token:', result.token);
     console.log('Login result user:', result.user.id);
 
-    // Fetch Prisma user to get role
-    const prismaUser = await prisma.user.findUnique({
-      where: { id: result.user.id }
-    });
+    // Fetch user from MongoDB to get role
+    const db = mongoClient.db();
+    const mongoUser = await db.collection('user').findOne({ id: result.user.id });
 
     const userPayload = {
       id: result.user.id,
       email: result.user.email,
-      givenName: prismaUser?.givenName,
-      familyName: prismaUser?.familyName,
-      userRoles: prismaUser?.role ? [prismaUser.role] : []
+      givenName: mongoUser?.givenName,
+      familyName: mongoUser?.familyName,
+      userRoles: mongoUser?.role ? [mongoUser.role] : ['developer']
     };
 
-    // Set auth cookie - Better Auth should handle this automatically
-    // but we can ensure it's set correctly
-    // const cookieOptions = {
-    //   httpOnly: true,
-    //   secure: process.env.NODE_ENV === 'production',
-    //   sameSite: 'lax',
-    //   maxAge: 60 * 60 * 1000,
-    //   path: '/'  // IMPORTANT: Add path
-    // };
-    
-    // debugLogin('Setting cookie with token:', result.token.substring(0, 10) + '...');
-    // debugLogin('Cookie options:', cookieOptions);
-    
-    // Set the cookie
-    // res.cookie('better-auth.session_token', result.token, cookieOptions);
-
-    // Debug: Verify session was created in database
-    const dbSession = await prisma.session.findUnique({
-      where: { token: result.token },
-      include: { user: true }
-    });
+    // Check session in MongoDB
+    const dbSession = await db.collection('session').findOne({ token: result.token });
     console.log('Session created in DB:', dbSession ? 'Yes' : 'No');
     if (dbSession) {
       console.log('Session expires at:', dbSession.expiresAt);
@@ -153,7 +120,6 @@ authRouter.post('/sign-in/email', validate(loginSchema), async (req, res) => {
   }
 });
 
-
 // -----------------------------------------------------------------------------
 // Logout
 // -----------------------------------------------------------------------------
@@ -162,10 +128,9 @@ authRouter.post('/sign-out', async (req, res) => {
     const token = req.cookies['better-auth.session_token'];
     
     if (token) {
-      // Delete session from database
-      await prisma.session.delete({
-        where: { token }
-      }).catch(() => {
+      // Delete session from MongoDB
+      const db = mongoClient.db();
+      await db.collection('session').deleteOne({ token }).catch(() => {
         // Session might already be deleted
       });
     }

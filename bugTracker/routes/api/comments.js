@@ -1,5 +1,5 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import { mongoClient } from '../../middleware/auth.js';
 import debug from 'debug';
 import { bugCommentSchema, bugIdSchema, bugCommentSearchSchema } from '../../validation/bugSchema.js';
 import { validate } from '../../middleware/validator.js';
@@ -7,7 +7,6 @@ import { isAuthenticated } from '../../middleware/isAuthenticated.js';
 import { hasPermissions } from '../../middleware/hasPermissions.js';
 import { hasAnyRole } from '../../middleware/hasAnyRole.js';
 
-const prisma = new PrismaClient();
 const debugGet = debug('comments:get');
 const debugPost = debug('comments:post');
 
@@ -19,7 +18,7 @@ const router = express.Router();
 router.post(
     '/:bugId/comments',
     isAuthenticated,
-    hasPermissions('canAddComment'),  // Changed from 'canAddComments' to 'canAddComment'
+    hasPermissions('canAddComment'),
     hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']),
     validate(bugCommentSchema, 'body'),
     validate(bugIdSchema, 'params'),
@@ -30,20 +29,20 @@ router.post(
 
             debugPost(`Adding comment to bug ${bugId}`);
 
+            const db = mongoClient.db();
+
             // Check if bug exists
-            const bug = await prisma.bug.findUnique({
-                where: { id: bugId }
-            });
+            const bug = await db.collection('bug').findOne({ id: bugId });
 
             if (!bug) {
                 return res.status(404).json({ error: `Bug ${bugId} not found` });
             }
 
             // Check if user exists
-            const user = await prisma.user.findUnique({
-                where: { id: user_id },
-                select: { id: true, name: true, givenName: true, familyName: true }
-            });
+            const user = await db.collection('user').findOne(
+                { id: user_id },
+                { projection: { id: 1, name: 1, givenName: 1, familyName: 1 } }
+            );
 
             if (!user) {
                 return res.status(404).json({ error: `User ${user_id} not found` });
@@ -53,21 +52,26 @@ router.post(
                 ? `${user.givenName} ${user.familyName}`.trim()
                 : user.name || 'Unknown';
 
+            // Generate unique comment ID
+            const commentId = `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
             // Create comment
-            const comment = await prisma.comment.create({
-                data: {
-                    bugId,
-                    text,
-                    author: user_id,
-                    authorName
-                }
-            });
+            const comment = {
+                id: commentId,
+                bugId,
+                text,
+                author: user_id,
+                authorName,
+                createdAt: new Date()
+            };
+
+            await db.collection('comment').insertOne(comment);
 
             // Update bug's lastUpdated
-            await prisma.bug.update({
-                where: { id: bugId },
-                data: { lastUpdated: new Date() }
-            });
+            await db.collection('bug').updateOne(
+                { id: bugId },
+                { $set: { lastUpdated: new Date() } }
+            );
 
             debugPost(`Comment added successfully to bug ${bugId}`);
 
@@ -97,11 +101,10 @@ router.get(
 
             debugGet(`Fetching comment ${commentId} from bug ${bugId}`);
 
-            const comment = await prisma.comment.findFirst({
-                where: {
-                    id: commentId,
-                    bugId: bugId
-                }
+            const db = mongoClient.db();
+            const comment = await db.collection('comment').findOne({
+                id: commentId,
+                bugId: bugId
             });
 
             if (!comment) {
@@ -125,10 +128,11 @@ router.get('/:bugId/comments', isAuthenticated, hasPermissions('canViewData'), h
 
         debugGet(`Fetching all comments from bug: ${bugId}`);
 
-        const comments = await prisma.comment.findMany({
-            where: { bugId },
-            orderBy: { createdAt: 'asc' }
-        });
+        const db = mongoClient.db();
+        const comments = await db.collection('comment')
+            .find({ bugId })
+            .sort({ createdAt: 1 })
+            .toArray();
 
         if (!comments || comments.length === 0) {
             return res.status(404).json({ error: 'Comments not found' });

@@ -1,4 +1,5 @@
 import express from 'express';
+import { mongoClient } from '../../middleware/auth.js';
 import { getDb } from '../../database.js';
 import debug from 'debug';
 import { userIdSchema, userUpdateSchema } from '../../validation/userSchema.js';
@@ -22,7 +23,7 @@ const router = express.Router();
 router.get('/', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']), async (req, res) => {
   try {
     console.log('Fetching all users');
-    const db = await getDb();
+    const db = mongoClient.db();
 
     const { keywords, role, minAge, maxAge, page, limit, sortBy, order } = req.query;
 
@@ -31,7 +32,13 @@ router.get('/', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['dev
     const skip = limitNum > 0 ? (pageNum - 1) * limitNum : 0;
 
     const filter = {};
-    if (keywords) filter.$text = { $search: keywords };
+    if (keywords) {
+      filter.$or = [
+        { email: { $regex: keywords, $options: 'i' } },
+        { givenName: { $regex: keywords, $options: 'i' } },
+        { familyName: { $regex: keywords, $options: 'i' } }
+      ];
+    }
     if (role) filter.role = role;
 
     if (minAge || maxAge) {
@@ -48,18 +55,20 @@ router.get('/', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['dev
     const sortDirection = order === 'desc' ? -1 : 1;
     const sort = sortBy ? { [sortBy]: sortDirection } : { role: 1 };
 
-    const users = await db.collection('User')
-      .find(filter, {
-        projection: {
-          email: 1,
-          familyName: 1,
-          givenName: 1,
-          createdBugs: 1,
-          assignedBugs: 1,
-          role: 1
-        },
-        sort
+    const users = await db.collection('user')
+      .find(filter)
+      .project({
+        id: 1,
+        email: 1,
+        familyName: 1,
+        givenName: 1,
+        name: 1,
+        createdBugs: 1,
+        assignedBugs: 1,
+        role: 1,
+        createdAt: 1
       })
+      .sort(sort)
       .skip(skip)
       .limit(limitNum)
       .toArray();
@@ -81,27 +90,26 @@ router.get('/', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['dev
 // Find user by ID
 // -----------------------------------------------------------------------------
 router.get('/:id', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']), validate(userIdSchema, 'params'), async (req, res) => {
-    console.log('req.params:', req.params);
-    console.log('req.body:', req.body);
-    console.log('req.query:', req.query);
-
     try {
-        const db = await getDb();
+        const db = mongoClient.db();
         const userId = req.params.id;
 
         debugGet(`Fetching user with ID: ${userId}`);
 
-        // Better Auth uses string IDs, not ObjectIds
-        const user = await db.collection('User').findOne( 
-            { _id: userId },
+        // Better Auth uses 'id' field, not '_id'
+        const user = await db.collection('user').findOne( 
+            { id: userId },
             {
                 projection: {
+                    id: 1,
                     email: 1,
                     familyName: 1,
                     givenName: 1,
+                    name: 1,
                     createdBugs: 1,
                     assignedBugs: 1,
-                    role: 1
+                    role: 1,
+                    createdAt: 1
                 }
             }
         );
@@ -122,7 +130,7 @@ router.get('/:id', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['
 // -----------------------------------------------------------------------------
 router.patch('/me', isAuthenticated, validate(userUpdateSchema, 'body'), async (req, res) => {
     try {
-        const db = await getDb();
+        const db = mongoClient.db();
         const userId = req.user.id; 
         const updates = req.body || {};
         
@@ -133,45 +141,55 @@ router.patch('/me', isAuthenticated, validate(userUpdateSchema, 'body'), async (
             });
         }
         
-        updates.lastUpdated = new Date();
+        updates.updatedAt = new Date();
 
         debugUpdate(`User ${userId} updating their info with: ${JSON.stringify(updates)}`);
 
         // If password is being updated, use Better Auth
         if (updates.password) {
-            await auth.api.changePassword({
-                body: {
-                    newPassword: updates.password,
-                    currentPassword: updates.currentPassword // You'll need to require this
-                },
-                headers: req.headers
-            });
-            debugUpdate('Password successfully updated via Better Auth');
+            try {
+                await auth.api.changePassword({
+                    body: {
+                        newPassword: updates.password,
+                        currentPassword: updates.currentPassword
+                    },
+                    headers: req.headers
+                });
+                debugUpdate('Password successfully updated via Better Auth');
+            } catch (err) {
+                return res.status(400).json({ error: 'Failed to update password', details: err.message });
+            }
             delete updates.password;
             delete updates.confirmPassword;
             delete updates.currentPassword;
         }
 
         // Update custom fields
-        if (Object.keys(updates).length > 1) { // More than just lastUpdated
-            await db.collection('User').updateOne(  // Changed to 'User'
-                { _id: userId },
+        if (Object.keys(updates).length > 1) { // More than just updatedAt
+            await db.collection('user').updateOne(
+                { id: userId },
                 { $set: updates }
             );
 
-            await db.collection('edits').insertOne({
-                timestamp: new Date(),
-                col: 'User',  // Changed to 'User'
-                op: 'update',
-                target: { userId: userId },
-                update: updates,
-                auth: req.user
-            });
+            // Log edit
+            try {
+                const editsDb = await getDb();
+                await editsDb.collection('edits').insertOne({
+                    timestamp: new Date(),
+                    col: 'user',
+                    op: 'update',
+                    target: { userId: userId },
+                    update: updates,
+                    auth: req.user
+                });
+            } catch (editErr) {
+                console.error('Failed to log edit:', editErr);
+            }
         }
 
         res.status(200).json({ 
             message: 'Your info has been successfully updated', 
-            lastUpdated: updates.lastUpdated 
+            updatedAt: updates.updatedAt 
         });
     } catch (err) {
         console.error(err);
@@ -182,12 +200,12 @@ router.patch('/me', isAuthenticated, validate(userUpdateSchema, 'body'), async (
 // -----------------------------------------------------------------------------
 // Update user by ID (technical manager)
 // -----------------------------------------------------------------------------
-router.patch('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole('technical manager'), validate(userUpdateSchema, 'body'), validate(userIdSchema, 'params'), async (req, res) => {  // Changed to 'technical manager'
+router.patch('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole('technical manager'), validate(userUpdateSchema, 'body'), validate(userIdSchema, 'params'), async (req, res) => {
     try {
-        const db = await getDb();
+        const db = mongoClient.db();
         const userId = req.params.id;
         const updates = req.body || {};
-        updates.lastUpdated = new Date();
+        updates.updatedAt = new Date();
 
         debugUpdate(`Updating user ${userId} with: ${JSON.stringify(updates)}`);
 
@@ -197,8 +215,8 @@ router.patch('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole(
             delete updates.confirmPassword;
         }
 
-        const result = await db.collection('User').updateOne(  // Changed to 'User'
-            { _id: userId }, 
+        const result = await db.collection('user').updateOne(
+            { id: userId }, 
             { $set: updates }
         );
 
@@ -208,7 +226,7 @@ router.patch('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole(
 
         return res.status(200).json({
             message: 'User updated successfully',
-            lastUpdated: updates.lastUpdated
+            updatedAt: updates.updatedAt
         });
     } catch (err) {
         console.error('Update user error:', err);
@@ -219,14 +237,15 @@ router.patch('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole(
 // -----------------------------------------------------------------------------
 // Delete user by ID
 // -----------------------------------------------------------------------------
-router.delete('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole('technical manager'), validate(userIdSchema, 'params'), async (req, res) => {  // Changed to 'technical manager' and fixed validate
+router.delete('/:id', isAuthenticated, hasPermissions('canEditAnyUser'), hasRole('technical manager'), validate(userIdSchema, 'params'), async (req, res) => {
     try {
-        const db = await getDb();
+        const db = mongoClient.db();
         const userId = req.params.id;
 
         debugDelete(`Attempting to delete user: ${userId}`);
 
-        const result = await db.collection('User').deleteOne({ _id: userId }); 
+        const result = await db.collection('user').deleteOne({ id: userId });
+        
         if (result.deletedCount === 0) {
             return res.status(404).json({ error: 'User not found' });
         }
