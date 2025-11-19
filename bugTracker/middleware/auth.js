@@ -10,14 +10,10 @@ const dbName = process.env.MONGO_DB_NAME || 'DemoApi';
 
 const client = new MongoClient(mongoUrl);
 
-// Connect and export
-let connectionPromise;
-try {
-  connectionPromise = client.connect();
-  console.log('MongoDB connection initiated');
-} catch (error) {
-  console.error('Failed to connect to MongoDB:', error);
-}
+await client.connect();
+console.log('MongoDB connected successfully');
+
+const db = client.db(dbName); 
 
 export const auth = betterAuth({
   baseURL: 'http://localhost:5000',
@@ -26,9 +22,7 @@ export const auth = betterAuth({
     "http://localhost:8080",
     "http://localhost:5000",
   ],
-  database: mongodbAdapter(client, {
-    databaseName: dbName,
-  }),
+  database: mongodbAdapter(db),
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 6,
@@ -55,6 +49,6 @@ export const auth = betterAuth({
 
 // Export the connected client for direct MongoDB queries
 export const mongoClient = client;
+export const mongoDb = db;
 
-// Ensure connection before exporting
-await connectionPromise;
+console.log('Better Auth initialized with database:', dbName);

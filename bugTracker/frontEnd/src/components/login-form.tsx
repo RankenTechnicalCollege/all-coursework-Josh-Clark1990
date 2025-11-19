@@ -26,6 +26,7 @@ export function LoginForm({
   const [password, setPassword] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
 
+
 const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   e.preventDefault()
   
@@ -35,7 +36,6 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       onSuccess: () => {
         console.log('Login successful!')
         setError(null)
-        window.location.href = '/'
       },
       onError: (ctx) => {
         console.log('Login failed:', ctx.error)

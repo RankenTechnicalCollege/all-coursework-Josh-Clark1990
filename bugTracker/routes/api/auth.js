@@ -3,6 +3,7 @@ import { auth, mongoClient } from '../../middleware/auth.js';
 import { validate } from '../../middleware/validator.js';
 import { registerSchema, loginSchema} from '../../validation/userSchema.js';
 export const authRouter = express.Router();
+import { ObjectId } from 'mongodb';
 
 // -----------------------------------------------------------------------------
 // Register new user
@@ -24,8 +25,6 @@ authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => 
       return res.status(400).json({ error: 'Failed to create user' });
     }
 
-    console.log('Signup result token:', result.token);
-
     // Normalize role
     const rawRole = typeof role === 'string' ? role : (role && role.name) ? role.name : 'developer';
     const roleMap = {
@@ -39,9 +38,9 @@ authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => 
     const roleName = roleMap[rawRole] || rawRole;
 
     // 2. Update user in MongoDB with additional fields
-    const db = mongoClient.db();
-    await db.collection('user').updateOne(
-      { id: result.user.id },
+    const db = mongoClient.db(process.env.MONGO_DB_NAME || 'DemoApi');
+    const updateResult = await db.collection('user').updateOne(
+      { _id: new ObjectId(result.user.id) },
       { 
         $set: {
           givenName,
@@ -53,8 +52,12 @@ authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => 
       }
     );
 
-    // Fetch the updated user
-    const updatedUser = await db.collection('user').findOne({ id: result.user.id });
+    console.log('Update result - matched:', updateResult.matchedCount, 'modified:', updateResult.modifiedCount);
+
+    // 3. Fetch the updated user with _id
+    const updatedUser = await db.collection('user').findOne({ 
+      _id: new ObjectId(result.user.id) // ✅ Use _id, not id
+    });
 
     res.status(201).json({
       message: 'User registered successfully',

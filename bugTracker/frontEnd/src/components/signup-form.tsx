@@ -79,8 +79,8 @@ export function SignupForm({
       }
 
       setError(null)
-      // Redirect or show success message
       console.log('Account created successfully!', data)
+      onSwitchToLogin?.();
       
     } catch (err) {
       console.error('Signup error:', err)
