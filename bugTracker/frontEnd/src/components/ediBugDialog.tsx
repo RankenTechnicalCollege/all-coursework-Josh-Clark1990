@@ -1,5 +1,6 @@
 // components/edit-bug-dialog.tsx
 import { useState, useEffect } from 'react'
+import { type Bug } from './ui/columns'
 import {
   Dialog,
   DialogContent,
@@ -21,17 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-
-interface Bug {
-  _id: string
-  authorOfBug: string
-  statusLabel: string
-  assignedTo?: string
-  description?: string
-  stepsToReproduce?: string
-  comments?: string[]
-  testCases?: string[]
-}
 
 interface EditBugDialogProps {
   bug: Bug | null

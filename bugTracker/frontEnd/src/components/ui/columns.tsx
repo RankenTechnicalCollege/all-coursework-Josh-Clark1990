@@ -6,13 +6,18 @@ import { Button } from "@/components/ui/button"
 
 export type Bug = {
   _id: string
+  bugId?: string
   description?: string
   stepsToReproduce?: string
   authorOfBug?: string
   statusLabel?: string
+  submittedBy?: string
+  status?: string
   assignedTo?: string
   comments?: string[]
   testCases?: string[]
+  title?: string
+  priority?: string
 }
 
 export const columns = (onEdit: (bug: Bug) => void): ColumnDef<Bug>[] => [

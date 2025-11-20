@@ -27,10 +27,31 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 6,
   },
+
+  user: {
+    additionalFields: {
+      role: {
+        type: "string",
+        required: true,
+        input: true,
+      },
+      assignedBugs: {
+        type: "string[]",
+        required: false,
+        defaultValue: [],
+      },
+      createdBugs: {
+        type: "string[]",
+        required: false,
+        defaultValue: [],
+      },
+    }
+  },
+
   session: {
     cookieCache: {
       enabled: true,
-      maxAge: 5 * 60,
+      maxAge: 60 * 60
     },
   },
   token: {
@@ -52,3 +73,4 @@ export const mongoClient = client;
 export const mongoDb = db;
 
 console.log('Better Auth initialized with database:', dbName);
+console.log('Auth config user fields:', JSON.stringify(auth.options?.user?.additionalFields, null, 2));

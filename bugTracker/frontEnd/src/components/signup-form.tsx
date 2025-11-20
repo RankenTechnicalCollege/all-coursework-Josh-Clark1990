@@ -22,15 +22,13 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { useState } from 'react'
-// import { authClient } from '@/lib/betterAuth'
 
 export function SignupForm({
   className,
   onSwitchToLogin,
   ...props
 }: React.ComponentProps<"div"> & { onSwitchToLogin?: () => void}) {
-  const [givenName, setGivenName] = useState<string>('')
-  const [familyName, setFamilyName] = useState<string>('')
+  const [name, setName] = useState<string>('')
   const [email, setEmail] = useState<string>('')
   const [password, setPassword] = useState<string>('')
   const [confirmPassword, setConfirmPassword] = useState<string>('')
@@ -50,8 +48,16 @@ export function SignupForm({
       return
     }
 
-    // Combine given name and family name to create full name
-    const fullName = `${givenName} ${familyName}`.trim()
+      const payload = {
+    email,
+    password,
+    confirmPassword,
+    name,
+    role
+  };
+  console.log('Sending payload:', payload);
+  console.log('Name value:', name);
+  console.log('All form values:', { name, email, password, confirmPassword, role });
 
     try {
       const response = await fetch('http://localhost:5000/api/auth/sign-up/email', {
@@ -64,9 +70,7 @@ export function SignupForm({
           email,
           password,
           confirmPassword,
-          fullName,      
-          givenName,     
-          familyName,    
+          name,
           role
         })
       })
@@ -105,30 +109,18 @@ export function SignupForm({
               </div>
             )}
             <FieldGroup>
-              <div className="grid grid-cols-2 gap-4">
-                <Field>
-                  <FieldLabel htmlFor="givenName">Given Name</FieldLabel>
-                  <Input
-                    id="givenName"
-                    type="text"
-                    placeholder="John"
-                    value={givenName}
-                    onChange={(e) => setGivenName(e.target.value)}
-                    required
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="familyName">Family Name</FieldLabel>
-                  <Input
-                    id="familyName"
-                    type="text"
-                    placeholder="Doe"
-                    value={familyName}
-                    onChange={(e) => setFamilyName(e.target.value)}
-                    required
-                  />
-                </Field>
-              </div>
+              {/* CHANGED: Single name field instead of givenName/familyName */}
+              <Field>
+                <FieldLabel htmlFor="name">Full Name</FieldLabel>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </Field>
 
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -157,7 +149,6 @@ export function SignupForm({
                     <SelectItem value="quality analyst">Quality Analyst</SelectItem>
                     <SelectItem value="product manager">Product Manager</SelectItem>
                     <SelectItem value="technical manager">Technical Manager</SelectItem>
-                    <SelectItem value="user">User</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
@@ -172,7 +163,7 @@ export function SignupForm({
                   required
                 />
                 <FieldDescription>
-                  Must be at least 8 characters long.
+                  Must be at least 6 characters long.
                 </FieldDescription>
               </Field>
 

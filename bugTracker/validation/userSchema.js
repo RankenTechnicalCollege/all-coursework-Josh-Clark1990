@@ -10,12 +10,11 @@ const registerSchema = Joi.object({
             'business analyst',
             'quality analyst',
             'product manager',
-            'technical manager'
+            'technical manager',
+            'user'
         )
         .required(),
-    fullName: Joi.string().required(),
-    givenName: Joi.string().required(),
-    familyName: Joi.string().required()
+    name: Joi.string().required(),
 });
 
 const loginSchema = Joi.object({
@@ -36,9 +35,7 @@ const userUpdateSchema = Joi.object({
             then: Joi.required(),
             otherwise: Joi.forbidden()
         }),
-    fullName: Joi.string().optional(),
-    givenName: Joi.string().optional(),
-    familyName: Joi.string().optional(),
+    name: Joi.string().optional(),
     role: Joi.string().forbidden().optional()
 });
 

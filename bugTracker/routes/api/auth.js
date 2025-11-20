@@ -3,28 +3,18 @@ import { auth, mongoClient } from '../../middleware/auth.js';
 import { validate } from '../../middleware/validator.js';
 import { registerSchema, loginSchema} from '../../validation/userSchema.js';
 export const authRouter = express.Router();
-import { ObjectId } from 'mongodb';
 
 // -----------------------------------------------------------------------------
 // Register new user
 // -----------------------------------------------------------------------------
 authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => {
-  const { email, password, confirmPassword, fullName, givenName, familyName, role } = req.body;
+  const { email, password, confirmPassword, name, role } = req.body;
 
   if (password !== confirmPassword) {
     return res.status(400).json({ error: 'Passwords do not match' });
   }
 
   try {
-    // 1. Create user with Better Auth
-    const result = await auth.api.signUpEmail({
-      body: { email, password, name: fullName }
-    });
-
-    if (!result || !result.user) {
-      return res.status(400).json({ error: 'Failed to create user' });
-    }
-
     // Normalize role
     const rawRole = typeof role === 'string' ? role : (role && role.name) ? role.name : 'developer';
     const roleMap = {
@@ -34,30 +24,36 @@ authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => 
       productManager: 'product manager',
       developer: 'developer'
     };
-
     const roleName = roleMap[rawRole] || rawRole;
 
-    // 2. Update user in MongoDB with additional fields
+    // 1. Create user with Better Auth - PASS ROLE HERE
+    const result = await auth.api.signUpEmail({
+      body: { 
+        email, 
+        password, 
+        name,
+        role: roleName  // ← ADD THIS
+      }
+    });
+
+    if (!result || !result.user) {
+      return res.status(400).json({ error: 'Failed to create user' });
+    }
+
+    // 2. Update MongoDB with arrays only
     const db = mongoClient.db(process.env.MONGO_DB_NAME || 'DemoApi');
-    const updateResult = await db.collection('user').updateOne(
-      { _id: new ObjectId(result.user.id) },
+    await db.collection('user').updateOne(
+      { id: result.user.id },
       { 
         $set: {
-          givenName,
-          familyName,
-          role: roleName,
           createdBugs: [],
           assignedBugs: []
         }
       }
     );
 
-    console.log('Update result - matched:', updateResult.matchedCount, 'modified:', updateResult.modifiedCount);
-
-    // 3. Fetch the updated user with _id
-    const updatedUser = await db.collection('user').findOne({ 
-      _id: new ObjectId(result.user.id) // ✅ Use _id, not id
-    });
+    // 3. Fetch the complete user
+    const updatedUser = await db.collection('user').findOne({ id: result.user.id });
 
     res.status(201).json({
       message: 'User registered successfully',

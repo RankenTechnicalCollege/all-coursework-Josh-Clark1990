@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { type Bug, columns } from "./ui/columns"
 import { DataTable } from "./ui/dataTable"
-// import { EditBugDialog } from "./ediBugDialog"
+import { EditBugDialog } from "./ediBugDialog"
 
 export default function BugDisplay() { 
   const [data, setData] = useState<Bug[]>([])
@@ -44,8 +44,10 @@ export default function BugDisplay() {
     setIsDialogOpen(true)
     console.log('Dialog state set to:', true)
 
+  }
+
   const handleSave = () => {
-    fetchBugs() 
+    fetchBugs()
   }
 
   if (loading) {
@@ -58,54 +60,17 @@ export default function BugDisplay() {
 
   return (
     <div className="container mx-auto py-10">
-      <DataTable 
-        columns={columns(handleEditBug)} 
-        data={data} 
+      <DataTable
+        columns={columns(handleEditBug)}
+        data={data}
       />
-      
+
       <EditBugDialog
         bug={selectedBug}
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         onSave={handleSave}
       />
-    </div>
-  )
-}
-
-interface EditBugDialogProps {
-  bug: Bug | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSave: () => void
-}
-
-export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialogProps) {
-  // Handle the case where bugId might be undefined
-  const displayBugId = bug?._id
-  const [bugData, setBugData] = useState<Bug | null>(bug)
-
-  const handleSave = () => {
-    onSave()
-  }
-
-  const handleCancel = () => {
-    onOpenChange(false)
-  }
-
-  return (
-    <div>
-      {open && (
-        <div>
-          <h2>Edit Bug {displayBugId}</h2>
-          <form>
-            <input type="text" value={bugData?.description || ''} onChange={(e) => setBugData({ ...bugData!, description: e.target.value })} />
-            {/* <input type="text" value={bugData?.status || ''} onChange={(e) => setBugData({ ...bugData!, status: e.target.value })} /> */}
-            <button type="button" onClick={handleSave}>Save</button>
-            <button type="button" onClick={handleCancel}>Cancel</button>
-          </form>
-        </div>
-      )}
     </div>
   )
 }

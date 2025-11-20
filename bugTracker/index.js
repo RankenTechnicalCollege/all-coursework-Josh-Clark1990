@@ -8,6 +8,7 @@ import { usersRouter } from './routes/api/users.js';
 import { bugsRouter } from './routes/api/bugs.js';
 import { commentsRouter } from './routes/api/comments.js';
 import { testRouter } from './routes/api/test.js';
+import { authRouter } from './routes/api/auth.js';
 
 dotenv.config();
 const app = express();
@@ -26,11 +27,13 @@ app.use(cors({
   credentials: true
 }));
 
-// Better Auth routes
-app.all('/api/auth/*', toNodeHandler(auth));
-
 // Cookie parser
 app.use(cookieParser());
+
+app.use('/api/auth', authRouter);
+
+// Better Auth routes
+app.all('/api/auth/*', toNodeHandler(auth));
 
 // Custom session check middleware
 app.use(async (req, res, next) => {
