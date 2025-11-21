@@ -2,9 +2,23 @@ import { Bug } from "lucide-react";
 import { NavLink, Link } from "react-router-dom";
 import { ModeToggle } from '@/components/ui/modeToggle';
 import { Button } from '@/components/ui/button';
-import { authClient } from '@/lib/betterAuth';
+import { authClient, useSession, type ExtendedUser } from '@/lib/betterAuth';
+import { useNavigate } from "react-router-dom";
 
 const Navbar = () => {
+  const { data: session} = useSession();
+  const navigate = useNavigate();
+  
+  // Cast user to ExtendedUser to access role
+  const user = session?.user as ExtendedUser | undefined;
+  const userRole = user?.role;
+  const canAccessUsers = userRole === 'technical manager' || userRole === 'admin';
+
+  const handleSignOut = async () => {
+    await authClient.signOut();
+    navigate('/');
+  };
+
   return (
     <nav className="h-16 border-b border-border bg-card shadow-sm">
       <div className="container mx-auto h-full px-4 flex items-center justify-between">
@@ -16,16 +30,31 @@ const Navbar = () => {
         </Link>
         
         <div className="flex items-center gap-6">
-          <NavLink 
-            to='/users'
-            className={({ isActive }) => 
-              isActive 
-                ? "text-primary font-medium" 
-                : "text-muted-foreground hover:text-foreground transition-colors"
-            }
-          >
-            Users
-          </NavLink>
+
+        <NavLink
+          to='/?addBug=true'
+          className={({ isActive }) => 
+            isActive
+              ? "text-primary font-medium"
+              : "text-muted-foreground hover:text-foreground transition-colors"
+          }
+        >
+          Submit A Bug
+        </NavLink>
+
+          {/* Only show Users link if user has proper role */}
+          {canAccessUsers && (
+            <NavLink 
+              to='/showUsers'
+              className={({ isActive }) => 
+                isActive 
+                  ? "text-primary font-medium" 
+                  : "text-muted-foreground hover:text-foreground transition-colors"
+              }
+            >
+              Users
+            </NavLink>
+          )}
           
           <NavLink 
             to="/profile"
@@ -39,8 +68,14 @@ const Navbar = () => {
           </NavLink>
           
           <div className="flex items-center gap-4">
+            {/* Show user name if available */}
+            {user?.name && (
+              <span className="text-sm text-muted-foreground">
+                {user.name}
+              </span>
+            )}
             <ModeToggle />
-            <Button variant='default' onClick={() => authClient.signOut()}>
+            <Button variant='default' onClick={handleSignOut}>
               Sign Out
             </Button>
           </div>

@@ -24,13 +24,13 @@ app.use(cors({
     "http://localhost:5000",
     "https://bugtracker-1019735204077.us-central1.run.app"
   ],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders:['Content-Type', 'Authorization'],
 }));
 
 // Cookie parser
 app.use(cookieParser());
-
-app.use('/api/auth', authRouter);
 
 // Better Auth routes
 app.all('/api/auth/*', toNodeHandler(auth));
