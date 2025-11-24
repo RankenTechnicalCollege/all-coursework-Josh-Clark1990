@@ -32,7 +32,7 @@ app.use(cors({
 // Cookie parser
 app.use(cookieParser());
 
-// Better Auth routes
+// Better Auth routes - catches remaining /api/auth/* routes
 app.all('/api/auth/*', toNodeHandler(auth));
 
 // Custom session check middleware
@@ -53,6 +53,7 @@ app.use(async (req, res, next) => {
           id: sessionUser.id,
           email: sessionUser.email,
           name: sessionUser.name,
+          role: user?.role || 'developer',
           userRoles
         };
         req.session = session;
@@ -63,7 +64,6 @@ app.use(async (req, res, next) => {
   }
   next();
 });
-
 // API routes
 app.use('/api/users', usersRouter);
 app.use('/api/bugs', bugsRouter);

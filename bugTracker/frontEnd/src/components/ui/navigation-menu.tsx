@@ -12,7 +12,7 @@ const Navbar = () => {
   // Cast user to ExtendedUser to access role
   const user = session?.user as ExtendedUser | undefined;
   const userRole = user?.role;
-  const canAccessUsers = userRole === 'technical manager' || userRole === 'admin';
+  const canAccessUsers = userRole === 'technical manager';
 
   const handleSignOut = async () => {
     await authClient.signOut();

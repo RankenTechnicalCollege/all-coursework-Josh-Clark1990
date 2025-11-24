@@ -17,10 +17,12 @@ export type Bug = {
   comments?: string[]
   testCases?: string[]
   title?: string
-  priority?: string
 }
 
-export const columns = (onEdit: (bug: Bug) => void): ColumnDef<Bug>[] => [
+export const columns = (
+  onView: (bug: Bug) => void,   // For viewing bug details
+  onEdit: (bug: Bug) => void    // For editing bug
+): ColumnDef<Bug>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -48,7 +50,7 @@ export const columns = (onEdit: (bug: Bug) => void): ColumnDef<Bug>[] => [
       const bugId = row.original._id
       return (
         <button
-          onClick={() => onEdit(row.original)}
+          onClick={() => onView(row.original)}
           className="text-blue-600 hover:text-blue-800 hover:underline font-mono"
         >
           {bugId}
@@ -66,7 +68,7 @@ export const columns = (onEdit: (bug: Bug) => void): ColumnDef<Bug>[] => [
     accessorKey: "statusLabel",
     header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status") as string
+      const status = row.getValue("statusLabel") as string
       return <span className="capitalize">{status || "open"}</span>
     },
   },

@@ -1,5 +1,6 @@
 import express from 'express';
 import { mongoClient } from '../../middleware/auth.js';
+import { ObjectId } from 'mongodb';
 import { getDb } from '../../database.js';
 import debug from 'debug';
 import {
@@ -26,6 +27,41 @@ const debugAssign = debug('bugs:assign');
 const debugClose = debug('bugs:close');
 
 const router = express.Router();
+
+router.get('/me', async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  
+  const db = mongoClient.db();
+  console.log('🔍 Searching for user with id:', req.user.id);
+  
+  // Try finding by 'id' field first
+  let user = await db.collection('user').findOne({ id: req.user.id });
+  console.log('🔍 Found by id field:', user);
+  
+  // If not found, try by _id
+  if (!user) {
+    try {
+      user = await db.collection('user').findOne({ _id: new ObjectId(req.user.id) });
+      console.log('🔍 Found by _id field:', user);
+    } catch (err) {
+      console.log('🔍 Could not search by _id:', err.message);
+    }
+  }
+  
+  if (!user) {
+    return res.status(404).json({ error: 'User not found in database' });
+  }
+  
+  res.json({
+    id: req.user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role || 'developer'
+  });
+});
+
 
 // -----------------------------------------------------------------------------
 // Get all bugs

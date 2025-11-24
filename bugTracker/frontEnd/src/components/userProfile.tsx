@@ -9,7 +9,7 @@ export function UserProfilePage() {
   const fetchUser = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/users/me', { // Fixed: comma, not period
+      const response = await fetch('http://localhost:5000/api/users/me', { 
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'

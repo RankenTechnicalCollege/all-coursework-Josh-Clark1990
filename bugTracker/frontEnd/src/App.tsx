@@ -92,7 +92,7 @@ function AppContent() {
           <Route 
             path="/showUsers" 
             element={
-              <ProtectedRoute allowedRoles={['technical manager', 'admin']}>
+              <ProtectedRoute allowedRoles={['technical manager']}>
                 <UsersPage />
               </ProtectedRoute>
             } 

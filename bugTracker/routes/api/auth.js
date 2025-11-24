@@ -2,6 +2,7 @@ import express from 'express';
 import { auth, mongoClient } from '../../middleware/auth.js';
 import { validate } from '../../middleware/validator.js';
 import { registerSchema, loginSchema} from '../../validation/userSchema.js';
+
 export const authRouter = express.Router();
 
 // -----------------------------------------------------------------------------
@@ -26,13 +27,13 @@ authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => 
     };
     const roleName = roleMap[rawRole] || rawRole;
 
-    // 1. Create user with Better Auth - PASS ROLE HERE
+    // 1. Create user with Better Auth
     const result = await auth.api.signUpEmail({
       body: { 
         email, 
         password, 
         name,
-        role: roleName  // ← ADD THIS
+        role: roleName 
       }
     });
 
@@ -40,7 +41,7 @@ authRouter.post('/sign-up/email', validate(registerSchema), async (req, res) => 
       return res.status(400).json({ error: 'Failed to create user' });
     }
 
-    // 2. Update MongoDB with arrays only
+    // 2. Update MongoDB with arrays
     const db = mongoClient.db(process.env.MONGO_DB_NAME || 'DemoApi');
     await db.collection('user').updateOne(
       { id: result.user.id },
@@ -83,9 +84,6 @@ authRouter.post('/sign-in/email', validate(loginSchema), async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    console.log('Login result token:', result.token);
-    console.log('Login result user:', result.user.id);
-
     // Fetch user from MongoDB to get role
     const db = mongoClient.db();
     const mongoUser = await db.collection('user').findOne({ id: result.user.id });
@@ -93,21 +91,12 @@ authRouter.post('/sign-in/email', validate(loginSchema), async (req, res) => {
     const userPayload = {
       id: result.user.id,
       email: result.user.email,
-      givenName: mongoUser?.givenName,
-      familyName: mongoUser?.familyName,
-      userRoles: mongoUser?.role ? [mongoUser.role] : ['developer']
+      name: result.user.name,
+      role: mongoUser?.role || 'developer'
     };
 
-    // Check session in MongoDB
-    const dbSession = await db.collection('session').findOne({ token: result.token });
-    console.log('Session created in DB:', dbSession ? 'Yes' : 'No');
-    if (dbSession) {
-      console.log('Session expires at:', dbSession.expiresAt);
-      console.log('Session user ID:', dbSession.userId);
-    }
-
     res.status(200).json({
-      message: `Login successful. Welcome back ${userPayload.givenName || result.user.name}!`,
+      message: `Login successful. Welcome back ${result.user.name}!`,
       user: userPayload,
       token: result.token
     });
@@ -127,11 +116,8 @@ authRouter.post('/sign-out', async (req, res) => {
     const token = req.cookies['better-auth.session_token'];
     
     if (token) {
-      // Delete session from MongoDB
       const db = mongoClient.db();
-      await db.collection('session').deleteOne({ token }).catch(() => {
-        // Session might already be deleted
-      });
+      await db.collection('session').deleteOne({ token }).catch(() => {});
     }
 
     res.clearCookie('better-auth.session_token', {
@@ -140,8 +126,6 @@ authRouter.post('/sign-out', async (req, res) => {
       sameSite: 'lax',
       path: '/',
     });
-    
-    console.log('Cookies cleared:', res.getHeaders());
 
     res.status(200).json({ message: 'User signed out successfully' });
   } catch (error) {

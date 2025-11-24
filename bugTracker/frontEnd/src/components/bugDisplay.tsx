@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { type Bug, columns } from "./ui/columns"
 import { DataTable } from "./ui/dataTable"
+import { ViewBugDialog } from "./viewBugInfoDialog"
 import { EditBugDialog } from "./ediBugDialog"
 
 export default function BugDisplay() { 
@@ -8,7 +9,10 @@ export default function BugDisplay() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedBug, setSelectedBug] = useState<Bug | null>(null)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  
+  // Separate dialog states for view and edit
+  const [viewDialogOpen, setViewDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
 
   const fetchBugs = async () => {
     try {
@@ -38,12 +42,18 @@ export default function BugDisplay() {
     fetchBugs()
   }, [])
 
-  const handleEditBug = (bug: Bug) => {
-    console.log('Opening dialog for bug:', bug)
+  // Handler for viewing bug (Bug ID link)
+  const handleViewBug = (bug: Bug) => {
+    console.log('Opening view dialog for bug:', bug)
     setSelectedBug(bug)
-    setIsDialogOpen(true)
-    console.log('Dialog state set to:', true)
+    setViewDialogOpen(true)
+  }
 
+  // Handler for editing bug (Edit button)
+  const handleEditBug = (bug: Bug) => {
+    console.log('Opening edit dialog for bug:', bug)
+    setSelectedBug(bug)
+    setEditDialogOpen(true)
   }
 
   const handleSave = () => {
@@ -61,14 +71,27 @@ export default function BugDisplay() {
   return (
     <div className="container mx-auto py-10">
       <DataTable
-        columns={columns(handleEditBug)}
+        columns={columns(handleViewBug, handleEditBug)}
         data={data}
       />
 
+      {/* View Dialog - for Bug ID clicks */}
+      <ViewBugDialog
+        bug={selectedBug}
+        open={viewDialogOpen}
+        onOpenChange={setViewDialogOpen}
+        onEdit={() => {
+          // Switch from view to edit
+          setViewDialogOpen(false)
+          setEditDialogOpen(true)
+        }}
+      />
+
+      {/* Edit Dialog - for Edit button clicks */}
       <EditBugDialog
         bug={selectedBug}
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
         onSave={handleSave}
       />
     </div>
