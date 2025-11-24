@@ -11,9 +11,9 @@ import { BrowserRouter } from 'react-router-dom';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Routes, Route, useSearchParams } from 'react-router-dom';
 import { AddBugDialog } from '@/components/addBugDialog'; 
-import { UsersPage } from '@/components/showUsers.'; 
-import { ProtectedRoute } from '@/components/protectedRoute' 
-
+import { UsersPage } from '@/components/showUsers.';
+import { ProtectedRoute } from '@/components/protectedRoute';
+import UserProfilePage from '@/components/userProfile';
 
 function App() {
   return (
@@ -38,12 +38,11 @@ function AppContent() {
     setSearchParams({});
   };
 
-  const handleDialogClose = (open: boolean) => { // Fixed typo: Case -> Close
+  const handleDialogClose = (open: boolean) => {
     if(!open) {
       setSearchParams({});
     }
   };
-
 
   console.log('App render - isPending:', isPending);
   console.log('App render - session:', session);
@@ -55,7 +54,6 @@ function AppContent() {
   if(!session) {
     return (
       <div className="min-h-screen bg-background">
-        {/* Theme toggle for login/signup pages */}
         <div className="absolute top-4 right-4">
           <ModeToggle />
         </div>
@@ -79,7 +77,7 @@ function AppContent() {
 
       <main className="container mx-auto p-4">
         <Routes>
-          {/* HOME PAGE - path="/" */}
+          {/* HOME PAGE */}
           <Route 
             path="/" 
             element={
@@ -100,14 +98,14 @@ function AppContent() {
             } 
           />
           
-          <Route path='/profile' element={<div>Profile Page</div>} />
+          <Route path="/profile" element={<UserProfilePage />} />
         </Routes>
       </main>
 
       {/* Add Bug Dialog */}
       <AddBugDialog
         open={isAddBugDialogOpen}
-        onOpenChange={handleDialogClose} // Fixed: was setIsAddBugDialogOpen
+        onOpenChange={handleDialogClose} 
         onSave={handleBugSave}
       />
     </div>

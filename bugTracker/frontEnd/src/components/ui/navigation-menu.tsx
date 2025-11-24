@@ -31,16 +31,16 @@ const Navbar = () => {
         
         <div className="flex items-center gap-6">
 
-        <NavLink
-          to='/?addBug=true'
-          className={({ isActive }) => 
-            isActive
-              ? "text-primary font-medium"
-              : "text-muted-foreground hover:text-foreground transition-colors"
-          }
-        >
-          Submit A Bug
-        </NavLink>
+          <NavLink
+            to='/?addBug=true'
+            className={({ isActive }) => 
+              isActive
+                ? "text-primary font-medium"
+                : "text-muted-foreground hover:text-foreground transition-colors"
+            }
+          >
+            Submit A Bug
+          </NavLink>
 
           {/* Only show Users link if user has proper role */}
           {canAccessUsers && (
@@ -56,23 +56,19 @@ const Navbar = () => {
             </NavLink>
           )}
           
-          <NavLink 
-            to="/profile"
-            className={({ isActive }) => 
-              isActive 
-                ? "text-primary font-medium" 
-                : "text-muted-foreground hover:text-foreground transition-colors"
-            }
-          >
-            Profile
-          </NavLink>
-          
           <div className="flex items-center gap-4">
-            {/* Show user name if available */}
+            {/* User name as clickable link to profile */}
             {user?.name && (
-              <span className="text-sm text-muted-foreground">
+              <NavLink 
+                to="/profile"
+                className={({ isActive }) => 
+                  isActive 
+                    ? "text-primary font-medium" 
+                    : "text-muted-foreground hover:text-foreground transition-colors"
+                }
+              >
                 {user.name}
-              </span>
+              </NavLink>
             )}
             <ModeToggle />
             <Button variant='default' onClick={handleSignOut}>

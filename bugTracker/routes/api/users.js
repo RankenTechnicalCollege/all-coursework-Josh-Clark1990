@@ -86,6 +86,69 @@ router.get('/', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['dev
   }
 });
 
+
+// -----------------------------------------------------------------------------
+// Get current user's profile
+// -----------------------------------------------------------------------------
+router.get('/me', isAuthenticated, async (req, res) => {
+  try {
+    const db = mongoClient.db();
+    const userId = req.user.id;
+
+    console.log('🔍 req.user:', req.user);
+    console.log('🔍 Looking for user ID:', userId);
+
+    // Try to find by 'id' field first, then by email as fallback
+    let user = await db.collection('user').findOne(
+      { id: userId },
+      {
+        projection: {
+          id: 1,
+          email: 1,
+          familyName: 1,
+          givenName: 1,
+          name: 1,
+          createdBugs: 1,
+          assignedBugs: 1,
+          role: 1,
+          createdAt: 1
+        }
+      }
+    );
+
+    // If not found by id, try by email (fallback for old users)
+    if (!user && req.user.email) {
+      user = await db.collection('user').findOne(
+        { email: req.user.email },
+        {
+          projection: {
+            id: 1,
+            email: 1,
+            familyName: 1,
+            givenName: 1,
+            name: 1,
+            createdBugs: 1,
+            assignedBugs: 1,
+            role: 1,
+            createdAt: 1
+          }
+        }
+      );
+    }
+
+    console.log('🔍 Found user:', user);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.status(200).json(user);
+  } catch (err) {
+    console.error('Error fetching user profile:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // -----------------------------------------------------------------------------
 // Find user by ID
 // -----------------------------------------------------------------------------
@@ -124,6 +187,8 @@ router.get('/:id', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
+
 
 // -----------------------------------------------------------------------------
 // User updates their own info
