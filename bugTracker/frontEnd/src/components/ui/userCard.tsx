@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { capitalizeWords } from '@/lib/capitalizeWords';
 import { EditUserDialog } from '../editUserDialog';
+import { AssignedBugsDialog } from '@/components/assignedBugsDialog';
 
 export interface User {
+  _id: ReactNode;
   id: string;
   name: string;
   email: string;
@@ -19,9 +21,16 @@ interface UserCardProps {
 
 export function UserCard({ user }: UserCardProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [assignedBugsDialogOpen, setAssignedBugsDialogOpen] = useState(false);
+  const [selectedUserForBugs, setSelectedUserForBugs] = useState<User | null>(null);
 
   const handleSave = () => {
     console.log('User Updated Successfully');
+  };
+
+  const onViewAssignedBugs = (user: User) => {
+    setSelectedUserForBugs(user);
+    setAssignedBugsDialogOpen(true);
   };
 
   return (
@@ -39,7 +48,7 @@ export function UserCard({ user }: UserCardProps) {
         <CardContent className="space-y-2">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>User ID:</span>
-            <span className="font-medium">{user.id}</span>
+            <span className="font-medium">{user._id}</span>
           </div>
           
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -49,7 +58,12 @@ export function UserCard({ user }: UserCardProps) {
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Assigned Bugs:</span>
-            <span className="font-medium">{user.assignedBugs?.length || 0}</span>
+            <button
+              onClick={() => onViewAssignedBugs(user)}
+              className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+            >
+              {user.assignedBugs?.length || 0}
+            </button>
           </div>
           
           <div className="mt-4">
@@ -69,6 +83,17 @@ export function UserCard({ user }: UserCardProps) {
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         onSave={handleSave}
+      />
+
+      <AssignedBugsDialog
+        user={selectedUserForBugs}
+        open={assignedBugsDialogOpen}
+        onOpenChange={setAssignedBugsDialogOpen}
+        onViewBugDetails={(bug) => {
+          // Optional: handle viewing individual bug details
+          setAssignedBugsDialogOpen(false);
+          // You can open a bug details dialog here if needed
+        }}
       />
     </>
   );

@@ -1,21 +1,21 @@
 export const hasAnyRole = (allowedRoles) => {
   return (req, res, next) => {
-    // Get user roles
-    const userRoles = req.user.userRoles || [];  // Changed to userRoles
+    // Get user role - Better Auth 
+    const userRole = req.user?.role;
 
-    if (!Array.isArray(userRoles) || userRoles.length === 0) {
-      return res.status(403).json({ error: 'No roles assigned to user' });
+    if (!userRole) {
+      return res.status(403).json({ error: 'No role assigned to user' });
     }
 
     // Convert allowedRoles to array if it's a string
     const rolesArray = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
 
-    // Check if the user has any of the allowed roles
-    const hasAllowedRole = userRoles.some(role => rolesArray.includes(role));
+    // Check if the user's role is in the allowed roles
+    const hasAllowedRole = rolesArray.includes(userRole);
 
     if (!hasAllowedRole) {
       return res.status(403).json({ 
-        error: `Access denied. Required role(s): ${rolesArray.join(', ')}. Your role: ${userRoles.join(', ')}` 
+        error: `Access denied. Required role(s): ${rolesArray.join(', ')}. Your role: ${userRole}` 
       });
     }
 

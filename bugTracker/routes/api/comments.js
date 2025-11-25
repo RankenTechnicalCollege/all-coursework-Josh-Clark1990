@@ -1,4 +1,5 @@
 import express from 'express';
+import { ObjectId } from 'mongodb';
 import { mongoClient } from '../../middleware/auth.js';
 import debug from 'debug';
 import { bugCommentSchema, bugIdSchema, bugCommentSearchSchema } from '../../validation/bugSchema.js';
@@ -13,136 +14,142 @@ const debugPost = debug('comments:post');
 const router = express.Router();
 
 // -----------------------------------------------------------------------------
-// Add a comment to a bug
+// Add comment to bug
 // -----------------------------------------------------------------------------
 router.post(
-    '/:bugId/comments',
-    isAuthenticated,
-    hasPermissions('canAddComment'),
-    hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']),
-    validate(bugCommentSchema, 'body'),
-    validate(bugIdSchema, 'params'),
-    async (req, res) => {
-        try {
-            const { bugId } = req.params;
-            const { user_id, text } = req.body;
+  '/:bugId/comments',
+  isAuthenticated,
+  hasPermissions('canAddComment'),
+  hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']),
+  validate(bugCommentSchema, 'body'),
+  validate(bugIdSchema, 'params'),
+  async (req, res) => {
+    try {
+      const { bugId } = req.params;
+      const { user_id, text } = req.body;
+      debugPost(`Adding comment to bug ${bugId}`);
 
-            debugPost(`Adding comment to bug ${bugId}`);
+      const db = mongoClient.db();
+      const bugObjectId = new ObjectId(bugId);
+      const userObjectId = new ObjectId(user_id);
 
-            const db = mongoClient.db();
+      // Check if bug exists
+      const bug = await db.collection('bug').findOne({ _id: bugObjectId });
 
-            // Check if bug exists
-            const bug = await db.collection('bug').findOne({ id: bugId });
+      if (!bug) {
+        return res.status(404).json({ error: 'Bug not found' });
+      }
 
-            if (!bug) {
-                return res.status(404).json({ error: `Bug ${bugId} not found` });
-            }
+      // Check if user exists
+      const user = await db.collection('user').findOne(
+        { _id: userObjectId },
+        { projection: { name: 1, givenName: 1, familyName: 1 } }
+      );
 
-            // Check if user exists
-            const user = await db.collection('user').findOne(
-                { id: user_id },
-                { projection: { id: 1, name: 1, givenName: 1, familyName: 1 } }
-            );
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
 
-            if (!user) {
-                return res.status(404).json({ error: `User ${user_id} not found` });
-            }
+      const authorName = user.givenName && user.familyName
+        ? `${user.givenName} ${user.familyName}`.trim()
+        : user.name || 'Unknown';
 
-            const authorName = user.givenName && user.familyName
-                ? `${user.givenName} ${user.familyName}`.trim()
-                : user.name || 'Unknown';
+      // Create comment
+      const comment = {
+        id: `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        bugId,
+        text,
+        author: user_id,
+        authorName,
+        createdAt: new Date()
+      };
 
-            // Generate unique comment ID
-            const commentId = `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const result = await db.collection('comment').insertOne(comment);
 
-            // Create comment
-            const comment = {
-                id: commentId,
-                bugId,
-                text,
-                author: user_id,
-                authorName,
-                createdAt: new Date()
-            };
+      // Update bug's lastUpdated
+      await db.collection('bug').updateOne(
+        { _id: bugObjectId },
+        { $set: { lastUpdated: new Date() } }
+      );
 
-            await db.collection('comment').insertOne(comment);
+      debugPost(`Comment added to bug ${bugId}`);
 
-            // Update bug's lastUpdated
-            await db.collection('bug').updateOne(
-                { id: bugId },
-                { $set: { lastUpdated: new Date() } }
-            );
-
-            debugPost(`Comment added successfully to bug ${bugId}`);
-
-            return res.status(200).json({
-                message: 'Comment successfully added',
-                comment
-            });
-        } catch (err) {
-            console.error('Comment bug error:', err);
-            return res.status(500).json({ error: 'Internal server error', details: err.message });
+      res.status(200).json({
+        message: 'Comment added successfully',
+        comment: {
+          ...comment,
+          _id: result.insertedId
         }
+      });
+    } catch (err) {
+      console.error('Add comment error:', err);
+      res.status(500).json({ error: 'Failed to add comment' });
     }
+  }
 );
 
 // -----------------------------------------------------------------------------
-// Find a specific comment by comment id
+// Get specific comment by ID
 // -----------------------------------------------------------------------------
 router.get(
-    '/:bugId/comments/:commentId',
-    isAuthenticated,
-    hasPermissions('canViewData'),
-    hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']),
-    validate(bugCommentSearchSchema, 'params'),
-    async (req, res) => {
-        try {
-            const { bugId, commentId } = req.params;
+  '/:bugId/comments/:commentId',
+  isAuthenticated,
+  hasPermissions('canViewData'),
+  hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']),
+  validate(bugCommentSearchSchema, 'params'),
+  async (req, res) => {
+    try {
+      const { bugId, commentId } = req.params;
+      debugGet(`Fetching comment ${commentId} from bug ${bugId}`);
 
-            debugGet(`Fetching comment ${commentId} from bug ${bugId}`);
+      const db = mongoClient.db();
+      const comment = await db.collection('comment').findOne({
+        id: commentId,
+        bugId: bugId
+      });
 
-            const db = mongoClient.db();
-            const comment = await db.collection('comment').findOne({
-                id: commentId,
-                bugId: bugId
-            });
+      if (!comment) {
+        return res.status(404).json({ error: 'Comment not found' });
+      }
 
-            if (!comment) {
-                return res.status(404).json({ error: 'Comment not found' });
-            }
-
-            res.status(200).json(comment);
-        } catch (err) {
-            console.error('Error fetching comment:', err);
-            res.status(500).json({ error: 'Internal server error', details: err.message });
-        }
+      res.status(200).json(comment);
+    } catch (err) {
+      console.error('Error fetching comment:', err);
+      res.status(500).json({ error: 'Internal server error' });
     }
+  }
 );
 
 // -----------------------------------------------------------------------------
-// Find all comments on a specific bug id
+// Get all comments for a bug
 // -----------------------------------------------------------------------------
-router.get('/:bugId/comments', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']), validate(bugIdSchema, 'params'), async (req, res) => {
+router.get(
+  '/:bugId/comments',
+  isAuthenticated,
+  hasPermissions('canViewData'),
+  hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']),
+  validate(bugIdSchema, 'params'),
+  async (req, res) => {
     try {
-        const { bugId } = req.params;
+      const { bugId } = req.params;
+      debugGet(`Fetching all comments for bug: ${bugId}`);
 
-        debugGet(`Fetching all comments from bug: ${bugId}`);
+      const db = mongoClient.db();
+      const comments = await db.collection('comment')
+        .find({ bugId })
+        .sort({ createdAt: 1 })
+        .toArray();
 
-        const db = mongoClient.db();
-        const comments = await db.collection('comment')
-            .find({ bugId })
-            .sort({ createdAt: 1 })
-            .toArray();
+      if (!comments || comments.length === 0) {
+        return res.status(404).json({ error: 'No comments found' });
+      }
 
-        if (!comments || comments.length === 0) {
-            return res.status(404).json({ error: 'Comments not found' });
-        }
-
-        res.status(200).json(comments);
+      res.status(200).json(comments);
     } catch (err) {
-        console.error('Error fetching comments:', err);
-        res.status(500).json({ error: 'Internal server error', details: err.message });
+      console.error('Error fetching comments:', err);
+      res.status(500).json({ error: 'Internal server error' });
     }
-});
+  }
+);
 
 export { router as commentsRouter };

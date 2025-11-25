@@ -9,7 +9,7 @@ import BugDisplay from './components/bugDisplay';
 import Navbar from '@/components/ui/navigation-menu';
 import { BrowserRouter } from 'react-router-dom';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { Routes, Route, useSearchParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { AddBugDialog } from '@/components/addBugDialog'; 
 import { UsersPage } from '@/components/showUsers.';
 import { ProtectedRoute } from '@/components/protectedRoute';

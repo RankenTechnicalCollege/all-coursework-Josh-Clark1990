@@ -6,17 +6,22 @@ import { Button } from "@/components/ui/button"
 
 export type Bug = {
   _id: string
+  id?: string
   bugId?: string
   description?: string
   stepsToReproduce?: string
   authorOfBug?: string
   statusLabel?: string
   submittedBy?: string
-  status?: string
+  status?: boolean
+  assignedUser?: string
+  assignedUserName?: string 
   assignedTo?: string
   comments?: string[]
   testCases?: string[]
-  title?: string
+  createdAt?: string
+  lastUpdated?: string
+  classification?: string
 }
 
 export const columns = (
@@ -58,11 +63,6 @@ export const columns = (
       )
     },
   },
-
-  {
-    accessorKey: "authorOfBug",
-    header: "Submitted By",
-  },
   
   {
     accessorKey: "statusLabel",
@@ -73,10 +73,32 @@ export const columns = (
     },
   },
 
-  {
-    accessorKey: "assignedTo",
-    header: "Assigned To",
+   {
+    accessorKey: "classification",
+    header: "Classification",
+    cell: ({ row }) => {
+      const status = row.getValue("classification") as string
+      return <span className="capitalize">{status || ""}</span>
+    },
   },
+
+{
+  accessorKey: "authorOfBug",
+  header: "Author",
+  cell: ({ row }) => {
+    const author = row.getValue("authorOfBug") as string
+    return <span className="capitalize">{author || "Unknown"}</span>
+  },
+},
+
+{
+  accessorKey: "assignedUserName",
+  header: "Assigned To",
+  cell: ({ row }) => {
+    const assignedUserName = row.getValue("assignedUserName") as string
+    return <span>{assignedUserName || "Unassigned"}</span>
+  },
+},
 
   {
     id: "edit",

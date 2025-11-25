@@ -7,26 +7,32 @@ import { getDb } from "../database.js";
 export const hasPermissions = (permission) => {
   return async (req, res, next) => {
     try {
-      // Get user roles
-      const userRoles = req.user.userRoles || [];
+      // Get user role (singular - from Better Auth)
+      const userRole = req.user?.role;
 
-      if (!Array.isArray(userRoles) || userRoles.length === 0) {
-        return res.status(403).json({ error: 'No roles assigned to user' });
+      if (!userRole) {
+        return res.status(403).json({ error: 'No role assigned to user' });
       }
 
       // Get database instance
       const db = await getDb();
 
-      // Query for role documents
-      const roleDocuments = await db.collection('Role').find({ role: { $in: userRoles } }).toArray();
+      // Query for the role document
+      const roleDocument = await db.collection('Role').findOne({ role: userRole });
 
-      // Check if any of the user's roles have the required permission
-      const hasRequiredPermission = roleDocuments.some(roleDoc => {
-        return roleDoc.permissions && roleDoc.permissions[permission] === true;
-      });
+      if (!roleDocument) {
+        return res.status(403).json({ error: `Role '${userRole}' not found in database` });
+      }
+
+      // Check if the role has the required permission
+      const hasRequiredPermission = roleDocument.permissions && roleDocument.permissions[permission] === true;
 
       if (!hasRequiredPermission) {
-        return res.status(403).json({ error: `Permission denied. Required permission: ${permission}` });
+        return res.status(403).json({ 
+          error: `Permission denied. Required permission: ${permission}`,
+          userRole: userRole,
+          availablePermissions: roleDocument.permissions ? Object.keys(roleDocument.permissions).filter(p => roleDocument.permissions[p]) : []
+        });
       }
       
       next();

@@ -1,4 +1,5 @@
 import express from 'express';
+import { ObjectId } from 'mongodb';
 import { mongoClient } from '../../middleware/auth.js';
 import debug from 'debug';
 import { validate } from '../../middleware/validator.js';
@@ -17,245 +18,272 @@ const debugDelete = debug('test:delete');
 const router = express.Router();
 
 // -----------------------------------------------------------------------------
-// Add a test case to a bug
+// Add test case to bug
 // -----------------------------------------------------------------------------
 router.post(
-    '/:bugId/tests',
-    isAuthenticated,
-    hasPermissions('canAddTestCase'),
-    hasRole('quality analyst'),
-    validate(bugIdSchema, 'params'),
-    validate(testUserSchema, 'body'),
-    async (req, res) => {
-        try {
-            const { bugId } = req.params;
-            const { title, description, status, author_id } = req.body;
+  '/:bugId/tests',
+  isAuthenticated,
+  hasPermissions('canAddTestCase'),
+  hasRole('quality analyst'),
+  validate(bugIdSchema, 'params'),
+  validate(testUserSchema, 'body'),
+  async (req, res) => {
+    try {
+      const { bugId } = req.params;
+      const { title, description, status, author_id } = req.body;
+      debugPost(`Creating test case for bug: ${bugId}`);
 
-            debugPost(`Creating test case for bug: ${bugId}`);
+      const db = mongoClient.db();
+      const bugObjectId = new ObjectId(bugId);
+      const authorObjectId = new ObjectId(author_id);
 
-            const db = mongoClient.db();
+      // Check if bug exists
+      const bug = await db.collection('bug').findOne({ _id: bugObjectId });
 
-            // Check if bug exists
-            const bug = await db.collection('bug').findOne({ id: bugId });
+      if (!bug) {
+        return res.status(404).json({ error: 'Bug not found' });
+      }
 
-            if (!bug) {
-                return res.status(404).json({ error: 'Bug not found' });
-            }
+      // Check if user exists and is a quality analyst
+      const user = await db.collection('user').findOne(
+        { _id: authorObjectId },
+        { projection: { name: 1, givenName: 1, familyName: 1, role: 1 } }
+      );
 
-            // Check if user exists and is a quality analyst
-            const user = await db.collection('user').findOne(
-                { id: author_id },
-                { projection: { id: 1, name: 1, givenName: 1, familyName: 1, role: 1 } }
-            );
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
 
-            if (!user) {
-                return res.status(404).json({ error: 'User not found' });
-            }
+      if (user.role !== 'quality analyst') {
+        return res.status(403).json({
+          error: 'Only quality analysts can add test cases'
+        });
+      }
 
-            if (user.role !== 'quality analyst') {
-                return res
-                    .status(403)
-                    .json({ error: 'User must be a quality analyst to add test cases' });
-            }
+      const authorName = user.givenName && user.familyName
+        ? `${user.givenName} ${user.familyName}`.trim()
+        : user.name || 'Unknown';
 
-            const authorName = user.givenName && user.familyName
-                ? `${user.givenName} ${user.familyName}`.trim()
-                : user.name || 'Unknown';
+      // Create test case
+      const testCase = {
+        id: `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        bugId,
+        title,
+        description,
+        status,
+        author: author_id,
+        authorName,
+        createdAt: new Date()
+      };
 
-            // Generate unique test case ID
-            const testCaseId = `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const result = await db.collection('testCase').insertOne(testCase);
 
-            // Create test case
-            const testCase = {
-                id: testCaseId,
-                bugId,
-                title,
-                description,
-                status,
-                author: author_id,
-                authorName,
-                createdAt: new Date()
-            };
+      // Update bug's lastUpdated
+      await db.collection('bug').updateOne(
+        { _id: bugObjectId },
+        { $set: { lastUpdated: new Date() } }
+      );
 
-            await db.collection('testCase').insertOne(testCase);
+      debugPost(`Test case created for bug: ${bugId}`);
 
-            // Update bug's lastUpdated
-            await db.collection('bug').updateOne(
-                { id: bugId },
-                { $set: { lastUpdated: new Date() } }
-            );
-
-            debugPost(`Test case created successfully for bug: ${bugId}`);
-
-            res.status(200).json({ message: 'Test case added', testCase });
-        } catch (err) {
-            debugPost('Error creating test case', err);
-            res.status(500).json({ error: 'Failed to create test case', details: err.message });
+      res.status(200).json({
+        message: 'Test case added successfully',
+        testCase: {
+          ...testCase,
+          _id: result.insertedId
         }
+      });
+    } catch (err) {
+      console.error('Create test case error:', err);
+      res.status(500).json({ error: 'Failed to create test case' });
     }
+  }
 );
 
 // -----------------------------------------------------------------------------
-// Get all test cases from a bug
+// Get all test cases for a bug
 // -----------------------------------------------------------------------------
-router.get('/:bugId/tests', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']), validate(bugIdSchema, 'params'), async (req, res) => {
+router.get(
+  '/:bugId/tests',
+  isAuthenticated,
+  hasPermissions('canViewData'),
+  hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']),
+  validate(bugIdSchema, 'params'),
+  async (req, res) => {
     try {
-        const { bugId } = req.params;
+      const { bugId } = req.params;
+      debugGet(`Fetching all test cases for bug: ${bugId}`);
 
-        debugGet(`Fetching all test cases for bug: ${bugId}`);
+      const db = mongoClient.db();
+      const bugObjectId = new ObjectId(bugId);
 
-        const db = mongoClient.db();
+      // Check if bug exists
+      const bug = await db.collection('bug').findOne({ _id: bugObjectId });
 
-        // Check if bug exists
-        const bug = await db.collection('bug').findOne({ id: bugId });
+      if (!bug) {
+        return res.status(404).json({ error: 'Bug not found' });
+      }
 
-        if (!bug) {
-            return res.status(404).json({ error: 'Bug not found' });
-        }
+      const testCases = await db.collection('testCase')
+        .find({ bugId })
+        .sort({ createdAt: -1 })
+        .toArray();
 
-        const testCases = await db.collection('testCase')
-            .find({ bugId })
-            .sort({ createdAt: -1 })
-            .toArray();
-
-        if (!testCases || testCases.length === 0) {
-            return res.status(200).json({ message: 'No test cases found on this bug', testCases: [] });
-        }
-
-        res.status(200).json(testCases);
-    } catch (err) {
-        console.error('Error fetching test cases:', err);
-        res.status(500).json({ error: 'Internal server error', details: err.message });
-    }
-});
-
-// -----------------------------------------------------------------------------
-// Get a specific test case from a bug
-// -----------------------------------------------------------------------------
-router.get('/:bugId/tests/:testId', isAuthenticated, hasPermissions('canViewData'), hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']), validate(testIdSchema, 'params'), async (req, res) => {
-    try {
-        const { bugId, testId } = req.params;
-
-        debugGet(`Fetching test case ${testId} from bug ${bugId}`);
-
-        const db = mongoClient.db();
-        const testCase = await db.collection('testCase').findOne({
-            id: testId,
-            bugId: bugId
+      if (!testCases || testCases.length === 0) {
+        return res.status(200).json({
+          message: 'No test cases found',
+          testCases: []
         });
+      }
 
-        if (!testCase) {
-            return res.status(404).json({ error: 'Test case not found' });
-        }
-
-        res.status(200).json(testCase);
+      res.status(200).json(testCases);
     } catch (err) {
-        console.error('Error fetching test case:', err);
-        res.status(500).json({ error: 'Internal server error', details: err.message });
+      console.error('Error fetching test cases:', err);
+      res.status(500).json({ error: 'Internal server error' });
     }
-});
+  }
+);
 
 // -----------------------------------------------------------------------------
-// Edit a test case for a bug
+// Get specific test case
+// -----------------------------------------------------------------------------
+router.get(
+  '/:bugId/tests/:testId',
+  isAuthenticated,
+  hasPermissions('canViewData'),
+  hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']),
+  validate(testIdSchema, 'params'),
+  async (req, res) => {
+    try {
+      const { bugId, testId } = req.params;
+      debugGet(`Fetching test case ${testId} from bug ${bugId}`);
+
+      const db = mongoClient.db();
+      const testCase = await db.collection('testCase').findOne({
+        id: testId,
+        bugId: bugId
+      });
+
+      if (!testCase) {
+        return res.status(404).json({ error: 'Test case not found' });
+      }
+
+      res.status(200).json(testCase);
+    } catch (err) {
+      console.error('Error fetching test case:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+// -----------------------------------------------------------------------------
+// Update test case
 // -----------------------------------------------------------------------------
 router.patch(
-    '/:bugId/tests/:testId',
-    isAuthenticated,
-    hasPermissions('canEditTestCase'),
-    hasRole('quality analyst'),
-    validate(testIdSchema, 'params'),
-    validate(testUpdateSchema, 'body'),
-    async (req, res) => {
-        try {
-            const { bugId, testId } = req.params;
-            const updates = req.body || {};
+  '/:bugId/tests/:testId',
+  isAuthenticated,
+  hasPermissions('canEditTestCase'),
+  hasRole('quality analyst'),
+  validate(testIdSchema, 'params'),
+  validate(testUpdateSchema, 'body'),
+  async (req, res) => {
+    try {
+      const { bugId, testId } = req.params;
+      const updates = req.body;
+      debugUpdate(`Updating test case ${testId} for bug ${bugId}`);
 
-            debugUpdate(`Updating test case ${testId} for bug ${bugId}`);
+      const db = mongoClient.db();
+      const bugObjectId = new ObjectId(bugId);
 
-            const db = mongoClient.db();
+      // Check if test case exists
+      const existingTest = await db.collection('testCase').findOne({
+        id: testId,
+        bugId: bugId
+      });
 
-            // Check if test case exists
-            const existingTest = await db.collection('testCase').findOne({
-                id: testId,
-                bugId: bugId
-            });
+      if (!existingTest) {
+        return res.status(404).json({ error: 'Test case not found' });
+      }
 
-            if (!existingTest) {
-                return res.status(404).json({ error: 'Test case not found' });
-            }
+      // Update test case
+      const result = await db.collection('testCase').updateOne(
+        { id: testId },
+        { $set: updates }
+      );
 
-            // Update test case
-            const result = await db.collection('testCase').updateOne(
-                { id: testId },
-                { $set: updates }
-            );
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ error: 'Test case not found' });
+      }
 
-            if (result.matchedCount === 0) {
-                return res.status(404).json({ error: 'Test case not found' });
-            }
+      // Get updated test case
+      const updatedTest = await db.collection('testCase').findOne({ id: testId });
 
-            // Get updated test case
-            const updatedTest = await db.collection('testCase').findOne({ id: testId });
+      // Update bug's lastUpdated
+      await db.collection('bug').updateOne(
+        { _id: bugObjectId },
+        { $set: { lastUpdated: new Date() } }
+      );
 
-            // Update bug's lastUpdated
-            await db.collection('bug').updateOne(
-                { id: bugId },
-                { $set: { lastUpdated: new Date() } }
-            );
-
-            res.status(200).json({
-                message: 'Test case updated successfully',
-                testCase: updatedTest
-            });
-        } catch (err) {
-            console.error('Update test case error', err);
-            res.status(500).json({ error: 'Internal server error', details: err.message });
-        }
+      res.status(200).json({
+        message: 'Test case updated successfully',
+        testCase: updatedTest
+      });
+    } catch (err) {
+      console.error('Update test case error:', err);
+      res.status(500).json({ error: 'Failed to update test case' });
     }
+  }
 );
 
 // -----------------------------------------------------------------------------
-// Delete a test case from a bug
+// Delete test case
 // -----------------------------------------------------------------------------
-router.delete('/:bugId/tests/:testId', isAuthenticated, hasPermissions('canDeleteTestCase'), hasRole('quality analyst'), validate(testIdSchema, 'params'), async (req, res) => {
+router.delete(
+  '/:bugId/tests/:testId',
+  isAuthenticated,
+  hasPermissions('canDeleteTestCase'),
+  hasRole('quality analyst'),
+  validate(testIdSchema, 'params'),
+  async (req, res) => {
     try {
-        const { bugId, testId } = req.params;
+      const { bugId, testId } = req.params;
+      debugDelete(`Deleting test case: ${testId}`);
 
-        debugDelete(`Attempting to delete test id: ${testId}`);
+      const db = mongoClient.db();
+      const bugObjectId = new ObjectId(bugId);
 
-        const db = mongoClient.db();
+      // Check if test case exists
+      const testCase = await db.collection('testCase').findOne({
+        id: testId,
+        bugId: bugId
+      });
 
-        // Check if test case exists
-        const testCase = await db.collection('testCase').findOne({
-            id: testId,
-            bugId: bugId
-        });
+      if (!testCase) {
+        return res.status(404).json({ error: 'Test case not found' });
+      }
 
-        if (!testCase) {
-            return res.status(404).json({ error: 'Test case not found' });
-        }
+      // Delete test case
+      const result = await db.collection('testCase').deleteOne({ id: testId });
 
-        // Delete test case
-        const result = await db.collection('testCase').deleteOne({ id: testId });
+      if (result.deletedCount === 0) {
+        return res.status(404).json({ error: 'Test case not found' });
+      }
 
-        if (result.deletedCount === 0) {
-            return res.status(404).json({ error: 'Test case not found' });
-        }
+      // Update bug's lastUpdated
+      await db.collection('bug').updateOne(
+        { _id: bugObjectId },
+        { $set: { lastUpdated: new Date() } }
+      );
 
-        // Update bug's lastUpdated
-        await db.collection('bug').updateOne(
-            { id: bugId },
-            { $set: { lastUpdated: new Date() } }
-        );
-
-        return res.status(200).json({
-            message: 'Test case deleted successfully',
-            deletedId: testId
-        });
+      res.status(200).json({
+        message: 'Test case deleted successfully',
+        deletedId: testId
+      });
     } catch (err) {
-        console.error('Delete test case error:', err);
-        return res.status(500).json({ error: 'Internal server error', details: err.message });
+      console.error('Delete test case error:', err);
+      res.status(500).json({ error: 'Failed to delete test case' });
     }
-});
+  }
+);
 
 export { router as testRouter };

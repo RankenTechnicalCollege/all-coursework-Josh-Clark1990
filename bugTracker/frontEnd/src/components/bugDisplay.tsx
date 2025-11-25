@@ -29,6 +29,7 @@ export default function BugDisplay() {
       }
       
       const result = await response.json()
+
       setData(result.bugs || result || [])
     } catch (err) {
       console.error('Error fetching bugs:', err)

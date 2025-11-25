@@ -13,13 +13,6 @@ import {
   FieldLabel,
   FieldGroup,
 } from '@/components/ui/field'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 
 interface AddBugDialogProps {
   open: boolean
@@ -27,13 +20,10 @@ interface AddBugDialogProps {
   onSave: () => void
 }
 
-const STATUSES = ['open', 'in progress', 'resolved', 'closed'] as const
-
 export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [stepsToReproduce, setStepsToReproduce] = useState('')
-  const [status, setStatus] = useState('open')
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -50,7 +40,6 @@ export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) 
           title,
           description,
           stepsToReproduce,
-          status,
         }),
       })
 
@@ -62,7 +51,6 @@ export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) 
       setTitle('')
       setDescription('')
       setStepsToReproduce('')
-      setStatus('open')
       setError(null)
       
       onSave()
@@ -126,21 +114,6 @@ export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) 
               />
             </Field>
 
-            <Field>
-              <FieldLabel htmlFor="status">Status</FieldLabel>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUSES.map((statusOption) => (
-                    <SelectItem key={statusOption} value={statusOption}>
-                      {statusOption.charAt(0).toUpperCase() + statusOption.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
           </FieldGroup>
 
           <div className="flex gap-2 justify-end mt-4">
