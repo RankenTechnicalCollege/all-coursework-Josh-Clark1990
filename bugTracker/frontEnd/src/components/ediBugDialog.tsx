@@ -77,47 +77,44 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
   }, [bug])
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!bug) return
+  e.preventDefault()
+  
+  console.log('=== SUBMIT STARTED ===')
+  console.log('Bug:', bug)
+  console.log('Form data:', { description, statusLabel, assignedTo, stepsToReproduce })
+  console.log('New comment:', newComment)
+  console.log('New test case:', newTestCase)
+  console.log('User role:', userRole)
+  
+  if (!bug) {
+    console.log('❌ No bug object found')
+    return
+  }
 
-    try {
-      // Update main bug fields
-      const bugResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          description,
-          statusLabel,
-          assignedTo,
-          stepsToReproduce,
-        }),
-      })
+  try {
+    // Update main bug fields
+    console.log('📤 Sending PUT request to:', `http://localhost:5000/api/bugs/${bug._id}`)
+    const bugResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        description,
+        statusLabel,
+        assignedTo,
+        stepsToReproduce,
+      }),
+    })
 
-      if (!bugResponse.ok) {
-        throw new Error('Failed to update bug')
-      }
+    console.log('📥 Bug update response status:', bugResponse.status)
+    const bugData = await bugResponse.json()
+    console.log('📥 Bug update response data:', bugData)
 
-      // Add comment if provided
-      if (newComment.trim()) {
-        const commentResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}/comments`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            text: newComment,
-          }),
-        })
-
-        if (!commentResponse.ok) {
-          throw new Error('Failed to add comment')
-        }
-      }
+    if (!bugResponse.ok) {
+      throw new Error(bugData.message || 'Failed to update bug')
+    }
 
       // Add test case if provided and user is quality analyst
       if (newTestCase.trim() && userRole === 'quality analyst') {

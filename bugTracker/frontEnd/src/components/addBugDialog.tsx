@@ -29,6 +29,8 @@ export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    console.log('Submitting bug:', { title, description, stepsToReproduce })
+
     try {
       const response = await fetch('http://localhost:5000/api/bugs', {
         method: 'POST',
@@ -42,6 +44,10 @@ export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) 
           stepsToReproduce,
         }),
       })
+
+    const data = await response.json()
+    console.log('Response status:', response.status)
+    console.log('Response data:', data)
 
       if (!response.ok) {
         throw new Error('Failed to submit bug')

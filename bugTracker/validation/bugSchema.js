@@ -4,7 +4,6 @@ const bugCreateSchema = Joi.object({
     title: Joi.string().required(),
     description: Joi.string().required(),
     stepsToReproduce: Joi.string().required(),
-    authorOfBug: Joi.string().required()
 });
 
 const bugIdSchema = Joi.object({

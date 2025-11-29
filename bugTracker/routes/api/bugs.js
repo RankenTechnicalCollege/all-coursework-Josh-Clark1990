@@ -16,6 +16,7 @@ import { isAuthenticated } from '../../middleware/isAuthenticated.js';
 import { hasPermissions } from '../../middleware/hasPermissions.js';
 import { hasRole } from '../../middleware/hasRole.js';
 import { hasAnyRole } from '../../middleware/hasAnyRole.js';
+import { auth } from '../../middleware/auth.js';
 
 // Debug namespaces
 const debugList = debug('bugs:list');
@@ -222,7 +223,7 @@ router.post(
   validate(bugCreateSchema, 'body'),
   async (req, res) => {
     try {
-      const { title, description, stepsToReproduce, authorOfBug } = req.body;
+      const { title, description, stepsToReproduce } = req.body;
       debugCreate('Creating new bug');
 
       const db = mongoClient.db();
@@ -232,7 +233,7 @@ router.post(
         title,
         description,
         stepsToReproduce,
-        authorOfBug,
+        authorOfBug: req.user.name,
         status: false,
         statusLabel: 'open',
         createdAt: new Date(),
@@ -250,7 +251,12 @@ router.post(
           col: 'Bug',
           op: 'create',
           target: { bugId: newBug.id },
-          update: { title, description, stepsToReproduce, authorOfBug },
+          update: { 
+            title, 
+            description, 
+            stepsToReproduce, 
+            authorOfBug: req.user.name
+          },
           auth: req.user
         });
       } catch (editErr) {
