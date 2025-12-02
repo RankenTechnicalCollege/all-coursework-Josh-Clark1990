@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { useState } from 'react'
+// import { betterAuth } from 'better-auth'
 
 export function SignupForm({
   className,
@@ -91,6 +92,7 @@ export function SignupForm({
       setError('An error occurred during signup')
     }
   }
+
 
   return (
     <div className={cn("flex flex-col gap-6 bg-card text-card-foreground border rounded-lg shadow-lg p-6", className)} {...props}>

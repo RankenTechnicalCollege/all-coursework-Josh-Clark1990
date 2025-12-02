@@ -16,7 +16,6 @@ import { isAuthenticated } from '../../middleware/isAuthenticated.js';
 import { hasPermissions } from '../../middleware/hasPermissions.js';
 import { hasRole } from '../../middleware/hasRole.js';
 import { hasAnyRole } from '../../middleware/hasAnyRole.js';
-import { auth } from '../../middleware/auth.js';
 
 // Debug namespaces
 const debugList = debug('bugs:list');
@@ -281,7 +280,6 @@ router.post(
 router.patch(
   '/:bugId',
   isAuthenticated,
-  hasPermissions('canEditAnyBug'),
   hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']),
   validate(bugUpdateSchema, 'body'),
   validate(bugIdSchema, 'params'),
@@ -292,6 +290,52 @@ router.patch(
       debugUpdate(`Updating bug ${bugId}`);
 
       const db = mongoClient.db();
+      
+      // Get the current bug to check previous assignee
+      const currentBug = await db.collection('bug').findOne({ _id: new ObjectId(bugId) });
+      
+      if (!currentBug) {
+        return res.status(404).json({ error: 'Bug not found' });
+      }
+
+      // Handle assignedTo changes
+      if ('assignedTo' in updates) {
+        const oldAssignee = currentBug.assignedUserName || currentBug.assignedTo;
+        const newAssignee = updates.assignedTo;
+
+        // Map assignedTo to assignedUserName for consistency
+        updates.assignedUserName = newAssignee;
+        delete updates.assignedTo;
+
+        // Remove bug from old assignee's assignedBugs array
+        if (oldAssignee && oldAssignee !== newAssignee) {
+          await db.collection('user').updateOne(
+            { name: oldAssignee },
+            { $pull: { assignedBugs: bugId } }
+          );
+          debugUpdate(`Removed bug ${bugId} from ${oldAssignee}'s assignedBugs`);
+        }
+
+        // Add bug to new assignee's assignedBugs array
+        if (newAssignee && newAssignee !== oldAssignee) {
+          await db.collection('user').updateOne(
+            { name: newAssignee },
+            { $addToSet: { assignedBugs: bugId } }
+          );
+          debugUpdate(`Added bug ${bugId} to ${newAssignee}'s assignedBugs`);
+        }
+
+        // Remove bug from all users if unassigned
+        if (!newAssignee) {
+          await db.collection('user').updateMany(
+            { assignedBugs: bugId },
+            { $pull: { assignedBugs: bugId } }
+          );
+          debugUpdate(`Unassigned bug ${bugId} from all users`);
+        }
+      }
+
+      // Update the bug
       const result = await db.collection('bug').updateOne(
         { _id: new ObjectId(bugId) },
         { $set: updates }

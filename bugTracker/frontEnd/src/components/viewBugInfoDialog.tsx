@@ -23,6 +23,13 @@ interface Comment {
   text: string
   author: string
   createdAt: string
+  title: string
+  statusLabel: string
+  classification: string
+  assignedTo: string
+  comments: string[]
+  testCase: string[]
+  
 }
 
 interface TestCase {

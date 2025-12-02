@@ -9,8 +9,6 @@ export default function BugDisplay() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedBug, setSelectedBug] = useState<Bug | null>(null)
-  
-  // Separate dialog states for view and edit
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
 
@@ -29,7 +27,6 @@ export default function BugDisplay() {
       }
       
       const result = await response.json()
-
       setData(result.bugs || result || [])
     } catch (err) {
       console.error('Error fetching bugs:', err)
@@ -43,22 +40,18 @@ export default function BugDisplay() {
     fetchBugs()
   }, [])
 
-  // Handler for viewing bug (Bug ID link)
   const handleViewBug = (bug: Bug) => {
-    console.log('Opening view dialog for bug:', bug)
     setSelectedBug(bug)
     setViewDialogOpen(true)
   }
 
-  // Handler for editing bug (Edit button)
   const handleEditBug = (bug: Bug) => {
-    console.log('Opening edit dialog for bug:', bug)
     setSelectedBug(bug)
     setEditDialogOpen(true)
   }
 
-  const handleSave = () => {
-    fetchBugs()
+  const handleSave = async () => {
+    await fetchBugs()
   }
 
   if (loading) {
@@ -76,19 +69,16 @@ export default function BugDisplay() {
         data={data}
       />
 
-      {/* View Dialog - for Bug ID clicks */}
       <ViewBugDialog
         bug={selectedBug}
         open={viewDialogOpen}
         onOpenChange={setViewDialogOpen}
         onEdit={() => {
-          // Switch from view to edit
           setViewDialogOpen(false)
           setEditDialogOpen(true)
         }}
       />
 
-      {/* Edit Dialog - for Edit button clicks */}
       <EditBugDialog
         bug={selectedBug}
         open={editDialogOpen}

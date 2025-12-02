@@ -1,43 +1,45 @@
-import Joi from 'joi';
+import { z } from 'zod';
+// Remove: import Joi from 'joi';
 
-const bugCreateSchema = Joi.object({
-    title: Joi.string().required(),
-    description: Joi.string().required(),
-    stepsToReproduce: Joi.string().required(),
+const bugCreateSchema = z.object({
+    title: z.string().min(1),
+    description: z.string().min(1),
+    stepsToReproduce: z.string().min(1),
 });
 
-const bugIdSchema = Joi.object({
-    bugId: Joi.string().required()
+const bugIdSchema = z.object({
+    bugId: z.string().min(1)
 });
 
-const bugUpdateSchema = Joi.object({
-    title: Joi.string().optional(),
-    description: Joi.string().optional(),
-    stepsToReproduce: Joi.string().optional()
+const bugUpdateSchema = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  stepsToReproduce: z.string().optional(),
+  statusLabel: z.enum(['open', 'resolved', 'closed']).optional(),
+  assignedTo: z.string().optional(),
+  classification: z.string().optional(),
 });
 
-const bugClassifySchema = Joi.object({
-    classification: Joi.string()
-        .valid('approved', 'unapproved', 'duplicate')
-        .required()
+const bugClassifySchema = z.object({
+    classification: z.enum(['approved', 'unapproved', 'duplicate'])
 });
 
-const bugAssignSchema = Joi.object({
-    user_id: Joi.string().required()
+const bugAssignSchema = z.object({
+    user_id: z.string().min(1)
 });
 
-const bugCloseSchema = Joi.object({
-    status: Joi.boolean().valid(true, false).required()
+const bugCloseSchema = z.object({
+    status: z.boolean()
 });
 
-const bugCommentSchema = Joi.object({
-    user_id: Joi.string().required(),
-    text: Joi.string().required()
+const bugCommentSchema = z.object({
+    user_id: z.string().min(1),
+    text: z.string().min(1)
 });
 
-const bugCommentSearchSchema = Joi.object({
-    bugId: Joi.string().required(),
-    commentId: Joi.string().required()
+const bugCommentSearchSchema = z.object({
+    bugId: z.string().min(1),
+    commentId: z.string().min(1)
 });
 
 export {

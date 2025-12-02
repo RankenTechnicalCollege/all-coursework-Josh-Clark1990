@@ -9,7 +9,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
   Field,
   FieldLabel,
@@ -39,32 +38,53 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
   const [newTestCase, setNewTestCase] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [assignableUsers, setAssignableUsers] = useState<Array<{
+    _id: string;
+    name: string;
+    email: string;
+    role: string;
+  }>>([])
+
+  useEffect(() => {
+    if (!open) return
+
+    const fetchAssignableUsers = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/users/assignable-users', {
+          credentials: 'include'
+        })
+        if (response.ok) {
+          const users = await response.json()
+          setAssignableUsers(users)
+        }
+      } catch (error) {
+        console.error('Error fetching assignable users:', error)
+      }
+    }
+
+    fetchAssignableUsers()
+  }, [open])
 
   useEffect(() => {
     if (!open) return
 
     const fetchUserRole = async () => {
       try {
-        console.log('🔄 Fetching user role...')
         const response = await fetch('http://localhost:5000/api/bugs/me', { 
           credentials: 'include',
         })
-        console.log('📡 Response status:', response.status)
         
         if (response.ok) {
           const userData = await response.json()
-          console.log('✅ User data received:', userData)
-          console.log('✅ Role:', userData.role)
           setUserRole(userData.role)
         }
       } catch (err) {
-        console.error('❌ Failed to fetch user role:', err)
+        console.error('Failed to fetch user role:', err)
       }
     }
     fetchUserRole()
   }, [open])
 
-  // Update form when bug changes
   useEffect(() => {
     if (bug) {
       setDescription(bug.description || '')
@@ -77,46 +97,31 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
   }, [bug])
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
-  
-  console.log('=== SUBMIT STARTED ===')
-  console.log('Bug:', bug)
-  console.log('Form data:', { description, statusLabel, assignedTo, stepsToReproduce })
-  console.log('New comment:', newComment)
-  console.log('New test case:', newTestCase)
-  console.log('User role:', userRole)
-  
-  if (!bug) {
-    console.log('❌ No bug object found')
-    return
-  }
+    e.preventDefault()
+    
+    if (!bug) return
 
-  try {
-    // Update main bug fields
-    console.log('📤 Sending PUT request to:', `http://localhost:5000/api/bugs/${bug._id}`)
-    const bugResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        description,
-        statusLabel,
-        assignedTo,
-        stepsToReproduce,
-      }),
-    })
+    try {
+      const bugResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          description,
+          statusLabel,
+          assignedTo,
+          stepsToReproduce,
+        }),
+      })
 
-    console.log('📥 Bug update response status:', bugResponse.status)
-    const bugData = await bugResponse.json()
-    console.log('📥 Bug update response data:', bugData)
+      const bugData = await bugResponse.json()
 
-    if (!bugResponse.ok) {
-      throw new Error(bugData.message || 'Failed to update bug')
-    }
+      if (!bugResponse.ok) {
+        throw new Error(bugData.message || 'Failed to update bug')
+      }
 
-      // Add test case if provided and user is quality analyst
       if (newTestCase.trim() && userRole === 'quality analyst') {
         const testCaseResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}/tests`, {
           method: 'POST',
@@ -135,7 +140,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
       }
 
       setError(null)
-      onSave()
+      await onSave()
       onOpenChange(false)
       
     } catch (err) {
@@ -203,12 +208,19 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
 
               <Field>
                 <FieldLabel htmlFor="assignedTo">Assigned To</FieldLabel>
-                <Input
-                  id="assignedTo"
-                  value={assignedTo}
-                  onChange={(e) => setAssignedTo(e.target.value)}
-                  placeholder="Assignee name"
-                />
+                <Select value={assignedTo || "unassigned"} onValueChange={(value) => setAssignedTo(value === "unassigned" ? "" : value)}>
+                  <SelectTrigger id="assignedTo">
+                    <SelectValue placeholder="Select a user to assign" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {assignableUsers.map((user) => (
+                      <SelectItem key={user._id} value={user.name}>
+                        {user.name} ({user.role})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
 
               <Field>

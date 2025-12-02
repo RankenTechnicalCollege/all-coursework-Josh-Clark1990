@@ -25,8 +25,8 @@ app.use(cors({
     "https://bugtracker-1019735204077.us-central1.run.app"
   ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders:['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 // Cookie parser

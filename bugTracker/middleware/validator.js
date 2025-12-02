@@ -1,14 +1,8 @@
 const validate = (schema, property = 'body') => (req, res, next) => {
-  const options = {
-    abortEarly: false,
-    allowUnknown: true,
-    stripUnknown: true
-  };
+  const result = schema.safeParse(req[property]);
 
-  const { error, value } = schema.validate(req[property], options);
-
-  if (error) {
-    const errorMessage = error.details.map(detail => detail.message);
+  if (!result.success) {
+    const errorMessage = result.error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
     return res.status(400).json({
       status: 'error',
       type: 'ValidationFailed',
@@ -17,7 +11,7 @@ const validate = (schema, property = 'body') => (req, res, next) => {
     });
   }
 
-  req[property] = value;
+  req[property] = result.data;
   next();
 };
 

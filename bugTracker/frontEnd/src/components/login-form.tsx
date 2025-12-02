@@ -26,24 +26,28 @@ export function LoginForm({
   const [password, setPassword] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
 
-
-const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault()
-  
-  await authClient.signIn.email(
-    { email, password },
-    {
-      onSuccess: () => {
-        console.log('Login successful!')
-        setError(null)
-      },
-      onError: (ctx) => {
-        console.log('Login failed:', ctx.error)
-        setError('Invalid email or password')
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    
+    await authClient.signIn.email(
+      { email, password },
+      {
+        onSuccess: () => {
+          setError(null)
+        },
+        onError: (ctx) => {
+          setError('Invalid email or password')
+        }
       }
-    }
-  )
-}
+    );
+  }
+
+  const handleGoogleSignIn = async () => {
+    await authClient.signIn.social({
+      provider: "google",
+      callbackURL: "/",
+    });
+  }
 
   return (
     <div className={cn("flex flex-col gap-6 bg-card text-card-foreground border rounded-lg shadow-lg p-6", className)} {...props}>
@@ -70,38 +74,48 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                   placeholder="email@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  required
                 />
               </Field>
               <Field>
                 <div className="flex items-center">
                   <FieldLabel htmlFor="password">Password</FieldLabel>
-                  
                   <div className="flex flex-col items-end ml-auto text-sm space-y-2">
                     <a href="#" className="hover:underline">
                       Forgot your password?
                     </a>
                   </div>
-
                 </div>
                 <Input
                   id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  required
                 />
               </Field>
               <Field>
-                <Button type="submit">Login</Button>
-                <Button variant="outline" type="button">
+                <Button type="submit" className="w-full">Login</Button>
+                <Button 
+                  variant="outline" 
+                  type="button"
+                  className="w-full"
+                  onClick={handleGoogleSignIn}
+                >
                   Login with Google
                 </Button>
                 <FieldDescription className="text-center">
-                  Don't have an account?{''} 
-                  <a href="#" onClick={(e) => {
-                    e.preventDefault();
-                    onSwitchToSignup?.();
-                  }}>
-                    Sign up</a>
+                  Don't have an account?{' '}
+                  <a 
+                    href="#" 
+                    className="underline"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onSwitchToSignup?.();
+                    }}
+                  >
+                    Sign up
+                  </a>
                 </FieldDescription>
               </Field>
             </FieldGroup>

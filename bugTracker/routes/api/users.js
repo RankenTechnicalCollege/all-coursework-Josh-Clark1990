@@ -144,6 +144,33 @@ router.get('/me', isAuthenticated, async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
+// Get all users eligible to be assigned bugs (only developers and QA)
+// -----------------------------------------------------------------------------
+router.get('/assignable-users', isAuthenticated, async (req, res) => {
+  try {
+    const db = mongoClient.db();
+    const users = await db.collection('user')
+      .find({
+        role: { 
+          $in: ['developer', 'quality analyst'] 
+        }
+      })
+      .project({ 
+        _id: 1, 
+        name: 1, 
+        email: 1, 
+        role: 1 
+      })
+      .toArray();
+
+    res.status(200).json(users);
+  } catch (err) {
+    console.error('Error fetching assignable users:', err);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// -----------------------------------------------------------------------------
 // Get user by ID
 // -----------------------------------------------------------------------------
 router.get(
@@ -351,5 +378,7 @@ router.delete(
     }
   }
 );
+
+
 
 export { router as usersRouter };

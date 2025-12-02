@@ -8,6 +8,7 @@ export type Bug = {
   _id: string
   id?: string
   bugId?: string
+  title?: string
   description?: string
   stepsToReproduce?: string
   authorOfBug?: string
@@ -47,6 +48,15 @@ export const columns = (
     enableSorting: false,
     enableHiding: false,
   },
+
+  {
+  accessorKey: "title",
+  header: "Title",
+  cell: ({ row }) => {
+    const title = row.getValue("title") as string
+    return <span>{title || "Unassigned"}</span>
+  },
+},
 
   {
     accessorKey: "bugId",

@@ -1,22 +1,22 @@
-import Joi from 'joi';
+import { z } from 'zod';
 
-const testUserSchema = Joi.object({
-    title: Joi.string().required(),
-    description: Joi.string().min(3).max(100).required(),
-    status: Joi.string().valid('passed', 'failed').required(),
-    author_id: Joi.string().length(24).hex().required()
+const testUserSchema = z.object({
+    title: z.string().min(1),
+    description: z.string().min(3).max(100),
+    status: z.enum(['passed', 'failed']),
+    author_id: z.string().length(24).regex(/^[0-9a-f]{24}$/i, 'Must be a valid MongoDB ObjectId')
 });
 
-const testIdSchema = Joi.object({
-    testId: Joi.string().length(24).hex().required(),
-    bugId: Joi.string().length(24).hex().required()
+const testIdSchema = z.object({
+    testId: z.string().length(24).regex(/^[0-9a-f]{24}$/i, 'Must be a valid MongoDB ObjectId'),
+    bugId: z.string().length(24).regex(/^[0-9a-f]{24}$/i, 'Must be a valid MongoDB ObjectId')
 });
 
-const testUpdateSchema = Joi.object({
-    title: Joi.string().optional(),
-    description: Joi.string().min(3).max(100).optional(),
-    status: Joi.string().valid('passed', 'failed').optional(),
-    author_id: Joi.string().length(24).hex().optional()
+const testUpdateSchema = z.object({
+    title: z.string().optional(),
+    description: z.string().min(3).max(100).optional(),
+    status: z.enum(['passed', 'failed']).optional(),
+    author_id: z.string().length(24).regex(/^[0-9a-f]{24}$/i, 'Must be a valid MongoDB ObjectId').optional()
 });
 
 export { testUserSchema, testIdSchema, testUpdateSchema };

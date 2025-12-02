@@ -2,16 +2,12 @@ import { betterAuth } from 'better-auth';
 import { mongodbAdapter } from 'better-auth/adapters/mongodb';
 import { MongoClient } from 'mongodb';
 
-console.log('Initializing Better Auth with URL:', process.env.BETTER_AUTH_URL);
-
-// Create MongoDB client
 const mongoUrl = process.env.DATABASE_URL;
 const dbName = process.env.MONGO_DB_NAME || 'DemoApi';
 
 const client = new MongoClient(mongoUrl);
 
 await client.connect();
-console.log('MongoDB connected successfully');
 
 const db = client.db(dbName); 
 
@@ -27,7 +23,6 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 6,
   },
-
   user: {
     additionalFields: {
       role: {
@@ -47,7 +42,6 @@ export const auth = betterAuth({
       },
     }
   },
-
   session: {
     fetchUser: true,
     cookieCache: {
@@ -67,11 +61,13 @@ export const auth = betterAuth({
       path: "/",
     },
   },
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }
+  },
 });
 
-// Export the connected client for direct MongoDB queries
 export const mongoClient = client;
 export const mongoDb = db;
-
-console.log('Better Auth initialized with database:', dbName);
-console.log('Auth config user fields:', JSON.stringify(auth.options?.user?.additionalFields, null, 2));
