@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { type Bug, columns } from "./ui/columns"
 import { DataTable } from "./ui/dataTable"
 import { ViewBugDialog } from "./viewBugInfoDialog"
-import { EditBugDialog } from "./ediBugDialog"
+import { EditBugDialog } from "./editBugDialog"
 
 export default function BugDisplay() { 
   const [data, setData] = useState<Bug[]>([])

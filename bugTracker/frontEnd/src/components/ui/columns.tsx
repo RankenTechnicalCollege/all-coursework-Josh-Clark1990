@@ -66,7 +66,7 @@ export const columns = (
       return (
         <button
           onClick={() => onView(row.original)}
-          className="text-blue-600 hover:text-blue-800 hover:underline font-mono"
+          className="text-blue-600 hover:text-blue-800 hover:underline font-mono "
         >
           {bugId}
         </button>

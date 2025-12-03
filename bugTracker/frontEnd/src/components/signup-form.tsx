@@ -22,7 +22,9 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { useState } from 'react'
-// import { betterAuth } from 'better-auth'
+import { createAuthClient } from 'better-auth/react'
+import { authClient } from "@/lib/betterAuth"
+import { z } from 'zod'
 
 export function SignupForm({
   className,
@@ -111,7 +113,6 @@ export function SignupForm({
               </div>
             )}
             <FieldGroup>
-              {/* CHANGED: Single name field instead of givenName/familyName */}
               <Field>
                 <FieldLabel htmlFor="name">Full Name</FieldLabel>
                 <Input
