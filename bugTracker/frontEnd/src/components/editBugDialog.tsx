@@ -130,7 +130,6 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
       const userData = await userResponse.json()
       const userId = userData._id
 
-      // Update the bug
       const bugResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}`, {
         method: 'PATCH',
         headers: {
@@ -141,7 +140,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
           description,
           statusLabel,
           classification,
-          assignedUserName: assignedTo,
+          assignedTo: assignedTo,
           stepsToReproduce,
         }),
       })

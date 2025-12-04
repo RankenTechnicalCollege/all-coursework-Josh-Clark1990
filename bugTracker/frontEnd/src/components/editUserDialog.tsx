@@ -24,6 +24,7 @@ import {
 
 interface EditUserDialogProps {
   user: User | null
+  currentUser: User | null // The logged-in user
   open: boolean
   onOpenChange: (open: boolean) => void
   onSave: () => void
@@ -37,13 +38,25 @@ const ROLES = [
   'business analyst'
 ] as const
 
-export function EditUserDialog({ user, open, onOpenChange, onSave }: EditUserDialogProps) {
+export function EditUserDialog({ user, currentUser, open, onOpenChange, onSave }: EditUserDialogProps) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  // Check if editing own account
+  const isOwnAccount = currentUser && user && currentUser._id === user._id
+  
+  // Check if current user is technical manager
+  const isTechnicalManager = currentUser?.role === 'technical manager'
+  
+  // Debug logging
+  console.log('EditUserDialog - Current User:', currentUser)
+  console.log('EditUserDialog - Current User Role:', currentUser?.role)
+  console.log('EditUserDialog - Is Technical Manager:', isTechnicalManager)
+  console.log('EditUserDialog - Is Own Account:', isOwnAccount)
 
   useEffect(() => {
     if (user) {
@@ -67,18 +80,35 @@ export function EditUserDialog({ user, open, onOpenChange, onSave }: EditUserDia
     }
 
     try {
-      const response = await fetch(`http://localhost:5000/api/users/${user.id}`, {
+      interface UpdateData {
+        name: string
+        email: string
+        password?: string
+        role?: string
+      }
+
+      const updateData: UpdateData = {
+        name,
+        email,
+      }
+
+      // Only include password if user is editing their own account and password is provided
+      if (isOwnAccount && password) {
+        updateData.password = password
+      }
+
+      // Only include role if current user is technical manager
+      if (isTechnicalManager) {
+        updateData.role = role
+      }
+
+      const response = await fetch(`http://localhost:5000/api/users/${user._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({
-          name,
-          email,
-          role,
-          ...(password && { password }), // Only include password if provided
-        }),
+        body: JSON.stringify(updateData),
       })
 
       if (!response.ok) {
@@ -102,7 +132,7 @@ export function EditUserDialog({ user, open, onOpenChange, onSave }: EditUserDia
         <DialogHeader>
           <DialogTitle>Edit User</DialogTitle>
           <DialogDescription>
-            User ID: {user.id}
+            User ID: {user._id}
           </DialogDescription>
         </DialogHeader>
 
@@ -137,43 +167,51 @@ export function EditUserDialog({ user, open, onOpenChange, onSave }: EditUserDia
               />
             </Field>
 
-            <Field>
-              <FieldLabel htmlFor="role">Role</FieldLabel>
-              <Select value={role} onValueChange={setRole}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLES.map((roleOption) => (
-                    <SelectItem key={roleOption} value={roleOption}>
-                      {roleOption.charAt(0).toUpperCase() + roleOption.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+            {/* Only show role field if current user is technical manager */}
+            {isTechnicalManager && (
+              <Field>
+                <FieldLabel htmlFor="role">Role</FieldLabel>
+                <Select value={role} onValueChange={setRole}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLES.map((roleOption) => (
+                      <SelectItem key={roleOption} value={roleOption}>
+                        {roleOption.charAt(0).toUpperCase() + roleOption.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
 
-            <Field>
-              <FieldLabel htmlFor="password">New Password (optional)</FieldLabel>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Leave blank to keep current password"
-              />
-            </Field>
+            {/* Only show password fields if editing own account */}
+            {isOwnAccount && (
+              <>
+                <Field>
+                  <FieldLabel htmlFor="password">New Password (optional)</FieldLabel>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Leave blank to keep current password"
+                  />
+                </Field>
 
-            <Field>
-              <FieldLabel htmlFor="confirmPassword">Confirm Password</FieldLabel>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
-              />
-            </Field>
+                <Field>
+                  <FieldLabel htmlFor="confirmPassword">Confirm Password</FieldLabel>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                  />
+                </Field>
+              </>
+            )}
           </FieldGroup>
 
           <div className="flex gap-2 justify-end mt-4">

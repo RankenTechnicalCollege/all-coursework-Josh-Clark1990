@@ -68,7 +68,7 @@ export function UserProfilePage() {
       </div>
 
       <div className="max-w-md">
-        <UserCard user={user} />
+        <UserCard user={user} currentUser={user} />
       </div>
     </div>
   );

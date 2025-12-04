@@ -11,7 +11,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { AddBugDialog } from '@/components/addBugDialog'; 
-import { UsersPage } from '@/components/showUsers.';
+import { UsersPage } from '@/components/showUsers';
 import { ProtectedRoute } from '@/components/protectedRoute';
 import UserProfilePage from '@/components/userProfile';
 
@@ -89,15 +89,17 @@ function AppContent() {
           />
 
           {/* PROTECTED USERS PAGE */}
-          <Route 
-            path="/showUsers" 
-            element={
-              <ProtectedRoute allowedRoles={['technical manager']}>
-                <UsersPage />
-              </ProtectedRoute>
-            } 
-          />
-          
+            <Route 
+              path="/showUsers" 
+              element={
+                <>
+                  {console.log('About to render UsersPage with session.user:', session.user)}
+                  <ProtectedRoute allowedRoles={['technical manager']}>
+                    <UsersPage currentUser={session.user} />
+                  </ProtectedRoute>
+                </>
+              } 
+            />
           <Route path="/profile" element={<UserProfilePage />} />
         </Routes>
       </main>

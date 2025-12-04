@@ -1,11 +1,23 @@
 import { useState, useEffect } from 'react';
 import { UserCard, type User } from './ui/userCard';
 
+interface UsersPageProps {
+  currentUser: {
+    id: string;
+    email: string;
+    name: string;
+    role?: string;
+    _id?: string;
+  };
+}
 
-export function UsersPage() {
+export function UsersPage({ currentUser }: UsersPageProps) {
   const [data, setData] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Debug logging
+  console.log('UsersPage - Received currentUser prop:', currentUser);
 
   const fetchUsers = async () => {
     try {
@@ -35,6 +47,17 @@ export function UsersPage() {
     fetchUsers();
   }, []);
 
+  // Map Better Auth user to our User type format for compatibility
+  const mappedCurrentUser: User = {
+    _id: currentUser.id,
+    id: currentUser.id,
+    email: currentUser.email,
+    name: currentUser.name,
+    role: currentUser.role || 'developer',
+  };
+
+  console.log('UsersPage - Mapped currentUser:', mappedCurrentUser);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -62,7 +85,7 @@ export function UsersPage() {
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {data.map((user) => (
-          <UserCard key={user.id} user={user} />
+          <UserCard key={user.id} user={user} currentUser={mappedCurrentUser} />
         ))}
       </div>
 
@@ -74,4 +97,5 @@ export function UsersPage() {
     </div>
   );
 }
+
 export default UsersPage;

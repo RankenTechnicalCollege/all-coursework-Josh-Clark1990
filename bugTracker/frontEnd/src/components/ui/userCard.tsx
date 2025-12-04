@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { EditUserDialog } from '../editUserDialog';
 import { AssignedBugsDialog } from '@/components/assignedBugsDialog';
 
 export interface User {
-  _id: ReactNode;
+  _id: string;
   id: string;
   name: string;
   email: string;
@@ -17,12 +17,17 @@ export interface User {
 
 interface UserCardProps {
   user: User;
+  currentUser: User | null;
 }
 
-export function UserCard({ user }: UserCardProps) {
+export function UserCard({ user, currentUser }: UserCardProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [assignedBugsDialogOpen, setAssignedBugsDialogOpen] = useState(false);
   const [selectedUserForBugs, setSelectedUserForBugs] = useState<User | null>(null);
+
+  // Debug logging
+  console.log('UserCard - Received currentUser:', currentUser);
+  console.log('UserCard - User being displayed:', user);
 
   const handleSave = () => {
     console.log('User Updated Successfully');
@@ -80,6 +85,7 @@ export function UserCard({ user }: UserCardProps) {
 
       <EditUserDialog
         user={user}
+        currentUser={currentUser}
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         onSave={handleSave}
@@ -89,10 +95,8 @@ export function UserCard({ user }: UserCardProps) {
         user={selectedUserForBugs}
         open={assignedBugsDialogOpen}
         onOpenChange={setAssignedBugsDialogOpen}
-        onViewBugDetails={(bug) => {
-          // Optional: handle viewing individual bug details
-          setAssignedBugsDialogOpen(false);
-          // You can open a bug details dialog here if needed
+        onViewBugDetails={() => {
+        setAssignedBugsDialogOpen(false);
         }}
       />
     </>
