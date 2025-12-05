@@ -103,7 +103,12 @@ router.get(
       }
 
       if (closed !== undefined) {
-        query.closed = closed === 'true';
+        if (closed === 'true') {
+          query.closed = true;
+        } else {
+          query.$or = query.$or || [];
+          query.$or.push({ closed: false }, { closed: { $exists: false } });
+        }
       }
 
       if (minAge || maxAge) {
@@ -150,8 +155,9 @@ router.get(
         .limit(limitNum)
         .toArray();
 
+      // Return empty array instead of 404 when no bugs found
       if (!bugs.length) {
-        return res.status(404).json({ error: 'No bugs found' });
+        return res.status(200).json([]);
       }
 
       res.status(200).json(bugs);
@@ -235,6 +241,7 @@ router.post(
         authorOfBug: req.user.name,
         status: false,
         statusLabel: 'open',
+        closed: false,
         createdAt: new Date(),
         lastUpdated: new Date()
       };

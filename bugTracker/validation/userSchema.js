@@ -28,20 +28,11 @@ const userIdSchema = z.object({
 });
 
 const userUpdateSchema = z.object({
+    email: z.string().email().optional(),
     password: z.string().min(6).max(20).optional(),
-    confirmPassword: z.string().optional(),
     currentPassword: z.string().optional(),
     name: z.string().optional(),
     role: z.string().optional()
-}).refine((data) => {
-    // If password is provided, confirmPassword must match
-    if (data.password && data.password !== data.confirmPassword) {
-        return false;
-    }
-    return true;
-}, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
 });
 
 export { registerSchema, loginSchema, userIdSchema, userUpdateSchema };

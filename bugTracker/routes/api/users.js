@@ -238,23 +238,29 @@ router.patch(
       // Handle password updates through Better Auth
       if (updates.password) {
         try {
-          await auth.api.changePassword({
+          // Use Better Auth's handler directly
+          const passwordChangeResult = await auth.api.changePassword({
             body: {
               newPassword: updates.password,
-              currentPassword: updates.currentPassword
+              currentPassword: updates.currentPassword,
             },
-            headers: req.headers
+            headers: req.headers,
+            asResponse: false,
           });
+          
           debugUpdate('Password successfully updated');
         } catch (err) {
-          return res.status(400).json({ error: 'Failed to update password' });
+          console.error('Password change error:', err);
+          return res.status(400).json({ 
+            error: err.message || 'Failed to update password. Please check your current password.' 
+          });
         }
+        // Remove password fields from updates
         delete updates.password;
-        delete updates.confirmPassword;
         delete updates.currentPassword;
       }
 
-      // Update custom fields
+      // Update custom fields (name, email, etc.)
       if (Object.keys(updates).length > 1) {
         await db.collection('user').updateOne(
           { _id: new ObjectId(userId) },

@@ -42,6 +42,7 @@ export function EditUserDialog({ user, currentUser, open, onOpenChange, onSave }
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -63,6 +64,7 @@ export function EditUserDialog({ user, currentUser, open, onOpenChange, onSave }
       setName(user.name || '')
       setEmail(user.email || '')
       setRole(user.role || '')
+      setCurrentPassword('')
       setPassword('')
       setConfirmPassword('')
     }
@@ -79,11 +81,18 @@ export function EditUserDialog({ user, currentUser, open, onOpenChange, onSave }
       return
     }
 
+    // Validate current password is provided when changing password
+    if (password && !currentPassword) {
+      setError('Current password is required to set a new password')
+      return
+    }
+
     try {
       interface UpdateData {
         name: string
         email: string
         password?: string
+        currentPassword?: string
         role?: string
       }
 
@@ -92,18 +101,30 @@ export function EditUserDialog({ user, currentUser, open, onOpenChange, onSave }
         email,
       }
 
-      // Only include password if user is editing their own account and password is provided
-      if (isOwnAccount && password) {
-        updateData.password = password
-      }
-
-      // Only include role if current user is technical manager
-      if (isTechnicalManager) {
+      // Determine the correct endpoint based on who is editing
+      let endpoint = ''
+      
+      if (isOwnAccount) {
+        // User editing their own profile - use /me endpoint
+        endpoint = 'http://localhost:5000/api/users/me'
+        
+        // Only include password fields if provided
+        if (password) {
+          updateData.password = password
+          updateData.currentPassword = currentPassword
+        }
+      } else if (isTechnicalManager) {
+        // Technical manager editing another user - use /:id endpoint
+        endpoint = `http://localhost:5000/api/users/${user._id}`
         updateData.role = role
+      } else {
+        // User trying to edit someone else without being a technical manager
+        setError('You do not have permission to edit this user')
+        return
       }
 
-      const response = await fetch(`http://localhost:5000/api/users/${user._id}`, {
-        method: 'PUT',
+      const response = await fetch(endpoint, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -112,7 +133,8 @@ export function EditUserDialog({ user, currentUser, open, onOpenChange, onSave }
       })
 
       if (!response.ok) {
-        throw new Error('Failed to update user')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update user')
       }
 
       setError(null)
@@ -120,9 +142,9 @@ export function EditUserDialog({ user, currentUser, open, onOpenChange, onSave }
       onOpenChange(false)
     } catch (err) {
       console.error('Error updating user:', err)
-      setError('Failed to update user')
+      setError(err instanceof Error ? err.message : 'Failed to update user')
     }
-  }
+  } 
 
   if (!user) return null
 
@@ -190,6 +212,17 @@ export function EditUserDialog({ user, currentUser, open, onOpenChange, onSave }
             {isOwnAccount && (
               <>
                 <Field>
+                  <FieldLabel htmlFor="currentPassword">Current Password</FieldLabel>
+                  <Input
+                    id="currentPassword"
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter current password"
+                  />
+                </Field>
+
+                <Field>
                   <FieldLabel htmlFor="password">New Password (optional)</FieldLabel>
                   <Input
                     id="password"
@@ -201,7 +234,7 @@ export function EditUserDialog({ user, currentUser, open, onOpenChange, onSave }
                 </Field>
 
                 <Field>
-                  <FieldLabel htmlFor="confirmPassword">Confirm Password</FieldLabel>
+                  <FieldLabel htmlFor="confirmPassword">Confirm New Password</FieldLabel>
                   <Input
                     id="confirmPassword"
                     type="password"

@@ -14,6 +14,8 @@ import { AddBugDialog } from '@/components/addBugDialog';
 import { UsersPage } from '@/components/showUsers';
 import { ProtectedRoute } from '@/components/protectedRoute';
 import UserProfilePage from '@/components/userProfile';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css'; 
 
 function App() {
   return (
@@ -21,6 +23,7 @@ function App() {
       <BrowserRouter>
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
           <AppContent />
+          <ToastContainer position="bottom-right" aria-label="Notifications" />
         </ThemeProvider>
       </BrowserRouter>
     </ErrorBoundary>
@@ -89,17 +92,17 @@ function AppContent() {
           />
 
           {/* PROTECTED USERS PAGE */}
-            <Route 
-              path="/showUsers" 
-              element={
-                <>
-                  {console.log('About to render UsersPage with session.user:', session.user)}
-                  <ProtectedRoute allowedRoles={['technical manager']}>
-                    <UsersPage currentUser={session.user} />
-                  </ProtectedRoute>
-                </>
-              } 
-            />
+          <Route 
+            path="/showUsers" 
+            element={
+              <>
+                {console.log('About to render UsersPage with session.user:', session.user)}
+                <ProtectedRoute allowedRoles={['technical manager']}>
+                  <UsersPage currentUser={session.user} />
+                </ProtectedRoute>
+              </>
+            } 
+          />
           <Route path="/profile" element={<UserProfilePage />} />
         </Routes>
       </main>
