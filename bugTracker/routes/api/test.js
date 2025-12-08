@@ -30,12 +30,11 @@ router.post(
   async (req, res) => {
     try {
       const { bugId } = req.params;
-      const { title, description, status, author_id } = req.body;
+      const { title, description, status } = req.body;
       debugPost(`Creating test case for bug: ${bugId}`);
 
       const db = mongoClient.db();
       const bugObjectId = new ObjectId(bugId);
-      const authorObjectId = new ObjectId(author_id);
 
       // Check if bug exists
       const bug = await db.collection('bug').findOne({ _id: bugObjectId });
@@ -44,26 +43,6 @@ router.post(
         return res.status(404).json({ error: 'Bug not found' });
       }
 
-      // Check if user exists and is a quality analyst
-      const user = await db.collection('user').findOne(
-        { _id: authorObjectId },
-        { projection: { name: 1, givenName: 1, familyName: 1, role: 1 } }
-      );
-
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      if (user.role !== 'quality analyst') {
-        return res.status(403).json({
-          error: 'Only quality analysts can add test cases'
-        });
-      }
-
-      const authorName = user.givenName && user.familyName
-        ? `${user.givenName} ${user.familyName}`.trim()
-        : user.name || 'Unknown';
-
       // Create test case
       const testCase = {
         id: `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -71,8 +50,8 @@ router.post(
         title,
         description,
         status,
-        author: author_id,
-        authorName,
+        author: req.user.id,
+        authorName: req.user.name,
         createdAt: new Date()
       };
 

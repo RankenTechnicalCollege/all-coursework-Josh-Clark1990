@@ -224,7 +224,7 @@ router.post(
   '/',
   isAuthenticated,
   hasPermissions('canCreateBug'),
-  hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']),
+  hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager', 'user']),
   validate(bugCreateSchema, 'body'),
   async (req, res) => {
     try {

@@ -137,6 +137,23 @@ export function ViewBugDialog({ bug, open, onOpenChange, onEdit }: ViewBugDialog
             </div>
           )}
 
+          {/* Created Date */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">Date Created</h3>
+            <p className="text-sm">
+              {bug.createdAt 
+                ? new Date(bug.createdAt).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })
+                : 'No date provided'
+              }
+            </p>
+          </div>
+
           {/* Assigned To */}
           {bug.assignedTo && (
             <div>

@@ -1,15 +1,15 @@
 export const hasRole = (requiredRole) => {
   return (req, res, next) => {
-    const userRoles = req.user.userRoles || [];
+    const userRole = req.user?.role;  // Changed variable name to singular
     
-    if (!Array.isArray(userRoles) || userRoles.length === 0) {
-      return res.status(403).json({ error: 'No roles assigned to user' });
+    if (!userRole) {  // Check if role exists
+      return res.status(403).json({ error: 'No role assigned to user' });
     }
     
-    // User must have exactly one role and it must match requiredRole
-    if (userRoles.length !== 1 || userRoles[0] !== requiredRole) {
+    // Check if user's role matches the required role (string comparison)
+    if (userRole !== requiredRole) {
       return res.status(403).json({ 
-        error: `Access denied. Required role: ${requiredRole}. Your role: ${userRoles[0]}` 
+        error: `Access denied. Required role: ${requiredRole}. Your role: ${userRole}` 
       });
     }
     

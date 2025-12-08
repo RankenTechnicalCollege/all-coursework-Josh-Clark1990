@@ -21,17 +21,16 @@ router.post(
   isAuthenticated,
   hasPermissions('canAddComment'),
   hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']),
-  validate(bugCommentSchema, 'body'),
+  validate(bugCommentSchema, 'body'),  
   validate(bugIdSchema, 'params'),
   async (req, res) => {
     try {
       const { bugId } = req.params;
-      const { user_id, text } = req.body;
-      debugPost(`Adding comment to bug ${bugId}`);
+      const { text } = req.body; 
 
       const db = mongoClient.db();
       const bugObjectId = new ObjectId(bugId);
-      const userObjectId = new ObjectId(user_id);
+      const userObjectId = new ObjectId(req.user.id); 
 
       // Check if bug exists
       const bug = await db.collection('bug').findOne({ _id: bugObjectId });
@@ -40,27 +39,16 @@ router.post(
         return res.status(404).json({ error: 'Bug not found' });
       }
 
-      // Check if user exists
-      const user = await db.collection('user').findOne(
-        { _id: userObjectId },
-        { projection: { name: 1, givenName: 1, familyName: 1 } }
-      );
-
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      const authorName = user.givenName && user.familyName
-        ? `${user.givenName} ${user.familyName}`.trim()
-        : user.name || 'Unknown';
+      // Get current user's name from req.user (already fetched in isAuthenticated)
+      const authorName = req.user.name || 'Unknown';
 
       // Create comment
       const comment = {
         id: `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         bugId,
         text,
-        author: user_id,
-        authorName,
+        author: req.user.id, 
+        authorName: authorName,      
         createdAt: new Date()
       };
 

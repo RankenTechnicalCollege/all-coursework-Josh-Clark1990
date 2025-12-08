@@ -183,7 +183,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
             title: testCaseTitle.trim(),
             description: testCaseDescription.trim(),
             status: testCaseStatus,
-            author_id: userId,
+            user_id: userId,
           }),
         })
 

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-// Remove: import Joi from 'joi';
 
 const bugCreateSchema = z.object({
     title: z.string().min(1),
@@ -33,7 +32,6 @@ const bugCloseSchema = z.object({
 });
 
 const bugCommentSchema = z.object({
-    user_id: z.string().min(1),
     text: z.string().min(1)
 });
 

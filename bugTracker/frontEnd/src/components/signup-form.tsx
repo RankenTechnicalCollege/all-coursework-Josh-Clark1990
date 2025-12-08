@@ -152,6 +152,7 @@ export function SignupForm({
                     <SelectItem value="quality analyst">Quality Analyst</SelectItem>
                     <SelectItem value="product manager">Product Manager</SelectItem>
                     <SelectItem value="technical manager">Technical Manager</SelectItem>
+                    <SelectItem value="user">User</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>

@@ -26,8 +26,8 @@ export default function BugDisplay() {
   const [searchKeywords, setSearchKeywords] = useState('')
   const [classification, setClassification] = useState<string>('all')
   const [closedFilter, setClosedFilter] = useState<string>('all')
-  const [sortBy, setSortBy] = useState<string>('createdAt')
-  const [sortOrder, setSortOrder] = useState<string>('desc')
+  const [sortBy, setSortBy] = useState<string>('selectCategory')
+  const [sortOrder, setSortOrder] = useState<string>('sort')
 
   const fetchBugs = async () => {
     try {
@@ -188,6 +188,7 @@ export default function BugDisplay() {
               <SelectValue placeholder="Sort by..." />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="selectCategory">Select Category</SelectItem>
               <SelectItem value="createdAt">Created Date</SelectItem>
               <SelectItem value="title">Title</SelectItem>
               <SelectItem value="classification">Classification</SelectItem>
@@ -203,6 +204,7 @@ export default function BugDisplay() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="sort">Sort Filter</SelectItem>
               <SelectItem value="asc">Ascending</SelectItem>
               <SelectItem value="desc">Descending</SelectItem>
             </SelectContent>
