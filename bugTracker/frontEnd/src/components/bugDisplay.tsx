@@ -24,10 +24,10 @@ export default function BugDisplay() {
 
   // Search and filter states
   const [searchKeywords, setSearchKeywords] = useState('')
-  const [classification, setClassification] = useState<string>('all')
-  const [closedFilter, setClosedFilter] = useState<string>('all')
-  const [sortBy, setSortBy] = useState<string>('selectCategory')
-  const [sortOrder, setSortOrder] = useState<string>('sort')
+  const [classification, setClassification] = useState<string>('')
+  const [closedFilter, setClosedFilter] = useState<string>('')
+  const [sortBy, setSortBy] = useState<string>('')
+  const [sortOrder, setSortOrder] = useState<string>('')
 
   const fetchBugs = async () => {
     try {
@@ -39,9 +39,9 @@ export default function BugDisplay() {
       if (searchKeywords) params.append('keywords', searchKeywords)
       if (classification && classification !== 'all') params.append('classification', classification)
       if (closedFilter && closedFilter !== 'all') params.append('closed', closedFilter)
-      if (sortBy) params.append('sortBy', sortBy)
-      if (sortOrder) params.append('order', sortOrder)
-      
+      if (sortBy && sortBy !== 'all') params.append('sortBy', sortBy)
+      if (sortOrder && sortOrder !== 'all') params.append('order', sortOrder)
+
       const response = await fetch(`http://localhost:5000/api/bugs?${params.toString()}`, {
         credentials: 'include',
         headers: {
@@ -85,17 +85,17 @@ export default function BugDisplay() {
 
   const clearFilters = () => {
     setSearchKeywords('')
-    setClassification('all')
-    setClosedFilter('all')
-    setSortBy('createdAt')
-    setSortOrder('desc')
+    setClassification('')
+    setClosedFilter('')
+    setSortBy('')
+    setSortOrder('')
   }
 
   const hasActiveFilters = searchKeywords || 
-                        (classification && classification !== 'all') || 
-                        (closedFilter && closedFilter !== 'all') || 
-                        sortBy !== 'createdAt' || 
-                        sortOrder !== 'desc'
+                      (classification && classification !== '') || 
+                      (closedFilter && closedFilter !== '') || 
+                      (sortBy && sortBy !== '') ||
+                      (sortOrder && sortOrder !== '')
 
   if (loading && !data.length) {
     return <div className="container mx-auto py-10">Loading bugs...</div>
@@ -162,11 +162,9 @@ export default function BugDisplay() {
               <SelectValue placeholder="Filter by classification" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Classifications</SelectItem>
               <SelectItem value="unclassified">Unclassified</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="unapproved">Unapproved</SelectItem>
-              <SelectItem value="duplicate">Duplicate</SelectItem>
             </SelectContent>
           </Select>
 
@@ -176,7 +174,6 @@ export default function BugDisplay() {
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="false">Open</SelectItem>
               <SelectItem value="true">Closed</SelectItem>
             </SelectContent>
@@ -188,7 +185,6 @@ export default function BugDisplay() {
               <SelectValue placeholder="Sort by..." />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="selectCategory">Select Category</SelectItem>
               <SelectItem value="createdAt">Created Date</SelectItem>
               <SelectItem value="title">Title</SelectItem>
               <SelectItem value="classification">Classification</SelectItem>
@@ -201,15 +197,13 @@ export default function BugDisplay() {
           {/* Sort Order */}
           <Select value={sortOrder} onValueChange={setSortOrder}>
             <SelectTrigger className="w-[150px]">
-              <SelectValue />
+              <SelectValue placeholder="Sort order" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="sort">Sort Filter</SelectItem>
               <SelectItem value="asc">Ascending</SelectItem>
               <SelectItem value="desc">Descending</SelectItem>
             </SelectContent>
           </Select>
-        </div>
 
         {/* Results count */}
         <div className="text-sm text-muted-foreground">
@@ -240,6 +234,7 @@ export default function BugDisplay() {
         onOpenChange={setEditDialogOpen}
         onSave={handleSave}
       />
+      </div>
     </div>
   )
 }

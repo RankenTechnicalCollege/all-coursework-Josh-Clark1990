@@ -22,9 +22,6 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { useState } from 'react'
-import { createAuthClient } from 'better-auth/react'
-import { authClient } from "@/lib/betterAuth"
-import { z } from 'zod'
 
 export function SignupForm({
   className,

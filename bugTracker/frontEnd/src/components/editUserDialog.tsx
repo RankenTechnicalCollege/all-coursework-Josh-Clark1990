@@ -35,7 +35,8 @@ const ROLES = [
   'technical manager',
   'product manager',
   'quality analyst',
-  'business analyst'
+  'business analyst',
+  'user'
 ] as const
 
 export function EditUserDialog({ user, currentUser, open, onOpenChange, onSave }: EditUserDialogProps) {
@@ -88,40 +89,46 @@ export function EditUserDialog({ user, currentUser, open, onOpenChange, onSave }
     }
 
     try {
-      interface UpdateData {
-        name: string
-        email: string
-        password?: string
-        currentPassword?: string
-        role?: string
-      }
+interface UpdateData {
+  name?: string
+  email?: string
+  currentEmail?: string  // Made optional
+  password?: string
+  currentPassword?: string
+  role?: string
+}
 
-      const updateData: UpdateData = {
-        name,
-        email,
-      }
+const updateData: UpdateData = {}
 
-      // Determine the correct endpoint based on who is editing
-      let endpoint = ''
-      
-      if (isOwnAccount) {
-        // User editing their own profile - use /me endpoint
-        endpoint = 'http://localhost:5000/api/users/me'
-        
-        // Only include password fields if provided
-        if (password) {
-          updateData.password = password
-          updateData.currentPassword = currentPassword
-        }
-      } else if (isTechnicalManager) {
-        // Technical manager editing another user - use /:id endpoint
-        endpoint = `http://localhost:5000/api/users/${user._id}`
-        updateData.role = role
-      } else {
-        // User trying to edit someone else without being a technical manager
-        setError('You do not have permission to edit this user')
-        return
-      }
+// Determine the correct endpoint based on who is editing
+let endpoint = ''
+
+if (isOwnAccount) {
+  // User editing their own profile - use /me endpoint
+  endpoint = 'http://localhost:5000/api/users/me'
+
+  updateData.name = name
+  updateData.email = email
+  
+  // Include password fields if user is changing password
+  if (password) {
+    updateData.password = password
+    updateData.currentPassword = currentPassword
+  }
+  
+  // Include currentEmail if email has changed
+  if (email !== user.email) {
+    updateData.currentEmail = user.email // Use user.email as the current email
+  }
+} else if (isTechnicalManager) {
+  // Technical manager editing another user - use /:id endpoint
+  endpoint = `http://localhost:5000/api/users/${user._id}`
+  updateData.role = role
+} else {
+  // User trying to edit someone else without being a technical manager
+  setError('You do not have permission to edit this user')
+  return
+}
 
       const response = await fetch(endpoint, {
         method: 'PATCH',
@@ -154,6 +161,8 @@ export function EditUserDialog({ user, currentUser, open, onOpenChange, onSave }
         <DialogHeader>
           <DialogTitle>Edit User</DialogTitle>
           <DialogDescription>
+            User Name: {user.name}
+            <br></br>
             User ID: {user._id}
           </DialogDescription>
         </DialogHeader>
@@ -166,6 +175,29 @@ export function EditUserDialog({ user, currentUser, open, onOpenChange, onSave }
           )}
 
           <FieldGroup>
+          {/* Only show role field if current user is technical manager */}
+            {isTechnicalManager && (
+              <Field>
+                <FieldLabel htmlFor="role">Role</FieldLabel>
+                <Select value={role} onValueChange={setRole}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLES.map((roleOption) => (
+                      <SelectItem key={roleOption} value={roleOption}>
+                        {roleOption.charAt(0).toUpperCase() + roleOption.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+
+            {/* Only show password fields if editing own account */}
+            {isOwnAccount && (
+              <>
+
             <Field>
               <FieldLabel htmlFor="name">Name</FieldLabel>
               <Input
@@ -189,28 +221,6 @@ export function EditUserDialog({ user, currentUser, open, onOpenChange, onSave }
               />
             </Field>
 
-            {/* Only show role field if current user is technical manager */}
-            {isTechnicalManager && (
-              <Field>
-                <FieldLabel htmlFor="role">Role</FieldLabel>
-                <Select value={role} onValueChange={setRole}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ROLES.map((roleOption) => (
-                      <SelectItem key={roleOption} value={roleOption}>
-                        {roleOption.charAt(0).toUpperCase() + roleOption.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            )}
-
-            {/* Only show password fields if editing own account */}
-            {isOwnAccount && (
-              <>
                 <Field>
                   <FieldLabel htmlFor="currentPassword">Current Password</FieldLabel>
                   <Input

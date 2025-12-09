@@ -37,6 +37,9 @@ interface TestCase {
   testCase: string
   author: string
   createdAt: string
+  authorName: string
+  description: string
+  status: string
 }
 
 export function ViewBugDialog({ bug, open, onOpenChange, onEdit }: ViewBugDialogProps) {
@@ -204,14 +207,18 @@ export function ViewBugDialog({ bug, open, onOpenChange, onEdit }: ViewBugDialog
                     className="bg-blue-50 rounded-lg p-3 border border-blue-200"
                   >
                     <div className="flex justify-between items-start mb-1">
-                      <span className="text-sm font-medium">{test.author}</span>
-                      <span className="text-xs text-gray-500">
-                        {new Date(test.createdAt).toLocaleDateString()}
-                      </span>
+                      <span className="text-sm font-medium">Tested by {test.authorName}</span>
+                      <br></br>
+                      <span className="text-sm font-medium">Test Status: {test.status}</span>
+
                     </div>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                      {test.testCase}
+                      {test.description}
+                      
                     </p>
+                      <span className="text-xs text-gray-500">
+                        Tested on {new Date(test.createdAt).toLocaleDateString()}
+                      </span>
                   </div>
                 ))}
               </div>

@@ -143,7 +143,8 @@ router.get(
         authorOfBug: 1,
         createdAt: 1,
         lastUpdated: 1,
-        closed: 1
+        closed: 1,
+        priority: 1
       };
 
       const db = mongoClient.db();
@@ -200,7 +201,8 @@ router.get(
             assignedUser: 1,
             assignedUserName: 1,
             closed: 1,
-            closedDate: 1
+            closedDate: 1,
+            priority: 1
           }
         }
       );
@@ -243,7 +245,8 @@ router.post(
         statusLabel: 'open',
         closed: false,
         createdAt: new Date(),
-        lastUpdated: new Date()
+        lastUpdated: new Date(),
+        priority,
       };
 
       const result = await db.collection('bug').insertOne(newBug);
