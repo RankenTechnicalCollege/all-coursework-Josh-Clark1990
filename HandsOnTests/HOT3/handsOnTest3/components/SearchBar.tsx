@@ -30,16 +30,13 @@ export default function SearchBar({ onSearch, onReset, currentPage = 1, totalPag
   const [maxPrice, setMaxPrice] = useState("")
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'category' | 'createdAt'>('category')
   const [order, setOrder] = useState<'asc' | 'desc'>('asc')
-  const [page, setPage] = useState(1)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    handleSearch(1) // Reset to page 1 on new search
+    handleSearch(1) 
   }
 
-  const handleSearch = (newPage: number = page) => {
-    setPage(newPage)
-    
+  const handleSearch = (newPage: number) => {
     const filters: SearchFilters = {
       page: newPage,
       limit: 10,
@@ -72,7 +69,6 @@ export default function SearchBar({ onSearch, onReset, currentPage = 1, totalPag
     setMaxPrice("")
     setSortBy('category')
     setOrder('asc')
-    setPage(1)
     onReset()
   }
 
@@ -160,7 +156,7 @@ export default function SearchBar({ onSearch, onReset, currentPage = 1, totalPag
           </div>
         </div>
 
-        <button type="button" onClick={() => handleSearch(page)} className="btn btn-apply">
+        <button type="button" onClick={() => handleSearch(currentPage)} className="btn btn-apply">
           Apply Filters
         </button>
       </div>
@@ -170,8 +166,8 @@ export default function SearchBar({ onSearch, onReset, currentPage = 1, totalPag
         <div className="pagination">
           <button
             type="button"
-            onClick={() => handleSearch(page - 1)}
-            disabled={page === 1}
+            onClick={() => handleSearch(currentPage - 1)}
+            disabled={currentPage === 1}
             className="btn btn-page"
           >
             ← Previous
@@ -179,8 +175,8 @@ export default function SearchBar({ onSearch, onReset, currentPage = 1, totalPag
           <span className="page-info">Page {currentPage} of {totalPages}</span>
           <button
             type="button"
-            onClick={() => handleSearch(page + 1)}
-            disabled={page >= totalPages}
+            onClick={() => handleSearch(currentPage + 1)}
+            disabled={currentPage >= totalPages}
             className="btn btn-page"
           >
             Next →

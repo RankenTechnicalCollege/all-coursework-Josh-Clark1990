@@ -16,10 +16,10 @@ router.get('/', async (req, res) => {
     const db = await getDb();
     const productsCollection = db.collection('products');
 
-    const { keywords, category, maxPrice, minPrice, sortBy, page, pageSize,} = req.query;
+    const { keywords, category, maxPrice, minPrice, sortBy, page, pageSize } = req.query;
 
     const pageNum = parseInt(page) || 1;
-    const limitNum = parseInt(pageSize) || 5;
+    const limitNum = parseInt(pageSize) || 9;
     const skip = limitNum > 0 ? (pageNum - 1) * limitNum : 0;
 
     const filter = {};
@@ -29,7 +29,7 @@ router.get('/', async (req, res) => {
     }
 
     if (category) {
-      filter.category = category;
+      filter.category = { $regex: category, $options: 'i' };
     }
 
     if (minPrice || maxPrice) {
@@ -39,15 +39,15 @@ router.get('/', async (req, res) => {
     }
 
     let sort = {};
-      if (sortBy === 'lowestPrice') {
-        sort = { price: 1, name: 1 };
-      } else if (sortBy === 'category') {
-        sort = { category: 1, name: 1 };
-      } else if (sortBy === 'newest') {
-        sort = { createdAt: -1, name: 1 };
-      } else if (sortBy === '' || sortBy === 'name') {
-        sort = { name: 1 };
-      }
+    if (sortBy === 'lowestPrice') {
+      sort = { price: 1, name: 1 };
+    } else if (sortBy === 'category') {
+      sort = { category: 1, name: 1 };
+    } else if (sortBy === 'newest') {
+      sort = { createdAt: -1, name: 1 };
+    } else if (sortBy === '' || sortBy === 'name') {
+      sort = { name: 1 };
+    }
 
     const products = await productsCollection
       .find(filter)
@@ -57,7 +57,6 @@ router.get('/', async (req, res) => {
       .limit(limitNum)
       .toArray();
 
-    
     const totalCount = await productsCollection.countDocuments(filter);
 
     if (!products || products.length === 0) {
@@ -78,7 +77,7 @@ router.get('/', async (req, res) => {
         currentPage: pageNum,
         totalPages: limitNum > 0 ? Math.ceil(totalCount / limitNum) : 1,
         totalItems: totalCount,
-        itemsPerPage: pageSize
+        itemsPerPage: limitNum
       }
     });
   } catch (err) {
