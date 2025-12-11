@@ -15,13 +15,14 @@ interface ViewBugDialogProps {
   bug: Bug | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  onEdit?: () => void  // Optional callback to switch to edit mode
+  onEdit?: () => void
 }
 
 interface Comment {
   _id: string
   text: string
   author: string
+  authorName: string
   createdAt: string
   title: string
   statusLabel: string
@@ -29,7 +30,6 @@ interface Comment {
   assignedTo: string
   comments: string[]
   testCase: string[]
-  
 }
 
 interface TestCase {
@@ -41,6 +41,22 @@ interface TestCase {
   description: string
   status: string
 }
+
+// Helper function to format date and time
+const formatDateTime = (date: string | Date) => {
+  const d = new Date(date);
+  const dateStr = d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+  const timeStr = d.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+  return `${dateStr}, at ${timeStr}`;
+};
 
 export function ViewBugDialog({ bug, open, onOpenChange, onEdit }: ViewBugDialogProps) {
   const [comments, setComments] = useState<Comment[]>([])
@@ -117,120 +133,120 @@ export function ViewBugDialog({ bug, open, onOpenChange, onEdit }: ViewBugDialog
         </DialogHeader>
         
         <div className="overflow-y-auto flex-1 pr-2">
-        <div className="space-y-6">
-          {/* Status */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">Status</h3>
-            <Badge className={getStatusColor(bug.statusLabel || 'open')}>
-              {bug.statusLabel || 'open'}
-            </Badge>
-          </div>
-
-          {/* Description */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">Description</h3>
-            <p className="text-sm">{bug.description || 'No description provided'}</p>
-          </div>
-
-          {/* Steps to Reproduce */}
-          {bug.stepsToReproduce && (
+          <div className="space-y-6">
+            {/* Status */}
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-1">Steps to Reproduce</h3>
-              <p className="text-sm whitespace-pre-wrap">{bug.stepsToReproduce}</p>
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Status</h3>
+              <Badge className={getStatusColor(bug.statusLabel || 'open')}>
+                {bug.statusLabel || 'open'}
+              </Badge>
             </div>
-          )}
 
-          {/* Created Date */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">Date Created</h3>
-            <p className="text-sm">
-              {bug.createdAt 
-                ? new Date(bug.createdAt).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })
-                : 'No date provided'
-              }
-            </p>
-          </div>
-
-          {/* Assigned To */}
-          {bug.assignedTo && (
+            {/* Description */}
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-1">Assigned To</h3>
-              <p className="text-sm">{bug.assignedTo}</p>
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Description</h3>
+              <p className="text-sm">{bug.description || 'No description provided'}</p>
             </div>
-          )}
 
-          {/* Comments */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-2">
-              Comments ({comments.length})
-            </h3>
-            {loading ? (
-              <p className="text-sm text-gray-500">Loading comments...</p>
-            ) : comments.length > 0 ? (
-              <div className="space-y-3">
-                {comments.map((comment) => (
-                  <div
-                    key={comment._id}
-                    className="bg-gray-50 rounded-lg p-3 border border-gray-200"
-                  >
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-sm font-medium">{comment.author}</span>
-                      <span className="text-xs text-gray-500">
-                        {new Date(comment.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-700">{comment.text}</p>
-                  </div>
-                ))}
+            {/* Steps to Reproduce */}
+            {bug.stepsToReproduce && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">Steps to Reproduce</h3>
+                <p className="text-sm whitespace-pre-wrap">{bug.stepsToReproduce}</p>
               </div>
-            ) : (
-              <p className="text-sm text-gray-500">No comments yet</p>
             )}
-          </div>
 
-          {/* Test Cases */}
-          {testCases.length > 0 && (
+            {/* Created Date */}
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Date Created</h3>
+              <p className="text-sm">
+                {bug.createdAt 
+                  ? new Date(bug.createdAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })
+                  : 'No date provided'
+                }
+              </p>
+            </div>
+
+            {/* Assigned To */}
+            {bug.assignedTo && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">Assigned To</h3>
+                <p className="text-sm">{bug.assignedTo}</p>
+              </div>
+            )}
+
+            {/* Comments */}
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-2">
-                Test Cases ({testCases.length})
+                Comments ({comments.length})
               </h3>
-              <div className="space-y-3">
-                {testCases.map((test) => (
-                  <div
-                    key={test._id}
-                    className="bg-blue-50 rounded-lg p-3 border border-blue-200"
-                  >
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-sm font-medium">Tested by {test.authorName}</span>
-                      <br></br>
-                      <span className="text-sm font-medium">Test Status: {test.status}</span>
-
+              {loading ? (
+                <p className="text-sm text-gray-500">Loading comments...</p>
+              ) : comments.length > 0 ? (
+                <div className="space-y-3">
+                  {comments.map((comment) => (
+                    <div
+                      key={comment._id}
+                      className="bg-gray-50 rounded-lg p-3 border border-gray-200"
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-sm font-medium">{comment.authorName}</span>
+                        <span className="text-xs text-gray-500">
+                          Commented {formatDateTime(comment.createdAt)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium">Comment id:{comment._id}</span>
+                      </div>
+                      <p className="text-sm text-gray-700">{comment.text}</p>
                     </div>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                      {test.description}
-                      
-                    </p>
-                      <span className="text-xs text-gray-500">
-                        Tested on {new Date(test.createdAt).toLocaleDateString()}
-                      </span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No comments yet</p>
+              )}
             </div>
-          )}
+
+            {/* Test Cases */}
+            {testCases.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">
+                  Test Cases ({testCases.length})
+                </h3>
+                <div className="space-y-3">
+                  {testCases.map((test) => (
+                    <div
+                      key={test._id}
+                      className="bg-blue-50 rounded-lg p-3 border border-blue-200"
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-sm font-medium">Tested by {test.authorName}</span>
+                        <span className="text-sm font-medium">Test Status: {test.status}</span>
+                      </div>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                        {test.description}
+                      </p>
+                      <span className="text-xs text-gray-500">
+                        Tested on {formatDateTime(test.createdAt)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex justify-end pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-        </div>
         </div>
       </DialogContent>
     </Dialog>

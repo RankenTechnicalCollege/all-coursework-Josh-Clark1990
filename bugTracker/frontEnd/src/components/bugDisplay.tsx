@@ -28,6 +28,7 @@ export default function BugDisplay() {
   const [closedFilter, setClosedFilter] = useState<string>('')
   const [sortBy, setSortBy] = useState<string>('')
   const [sortOrder, setSortOrder] = useState<string>('')
+  const [showMyBugs, setShowMyBugs] = useState(false)
 
   const fetchBugs = async () => {
     try {
@@ -41,6 +42,7 @@ export default function BugDisplay() {
       if (closedFilter && closedFilter !== 'all') params.append('closed', closedFilter)
       if (sortBy && sortBy !== 'all') params.append('sortBy', sortBy)
       if (sortOrder && sortOrder !== 'all') params.append('order', sortOrder)
+      if (showMyBugs) params.append('assignedToMe', 'true')
 
       const response = await fetch(`http://localhost:5000/api/bugs?${params.toString()}`, {
         credentials: 'include',
@@ -67,7 +69,7 @@ export default function BugDisplay() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchBugs()
-  }, [searchKeywords, classification, closedFilter, sortBy, sortOrder])
+  }, [searchKeywords, classification, closedFilter, sortBy, sortOrder, showMyBugs])
 
   const handleViewBug = (bug: Bug) => {
     setSelectedBug(bug)
@@ -89,13 +91,15 @@ export default function BugDisplay() {
     setClosedFilter('')
     setSortBy('')
     setSortOrder('')
+    setShowMyBugs(false)
   }
 
   const hasActiveFilters = searchKeywords || 
                       (classification && classification !== '') || 
                       (closedFilter && closedFilter !== '') || 
                       (sortBy && sortBy !== '') ||
-                      (sortOrder && sortOrder !== '')
+                      (sortOrder && sortOrder !== '') ||
+                      showMyBugs
 
   if (loading && !data.length) {
     return <div className="container mx-auto py-10">Loading bugs...</div>
@@ -134,12 +138,21 @@ export default function BugDisplay() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search bugs by title or description..."
+              placeholder="Search bugs by title or author..."
               value={searchKeywords}
               onChange={(e) => setSearchKeywords(e.target.value)}
               className="pl-10"
             />
           </div>
+
+          {/* My Bugs Button */}
+          <Button
+            variant={showMyBugs ? "default" : "outline"}
+            onClick={() => setShowMyBugs(!showMyBugs)}
+            className="flex items-center gap-2 whitespace-nowrap"
+          >
+            {showMyBugs ? "Showing My Bugs" : "Show My Bugs"}
+          </Button>
 
           {/* Clear Filters Button */}
           {hasActiveFilters && (
@@ -176,6 +189,7 @@ export default function BugDisplay() {
             <SelectContent>
               <SelectItem value="false">Open</SelectItem>
               <SelectItem value="true">Closed</SelectItem>
+              <SelectItem value="resolved">Resolved</SelectItem>
             </SelectContent>
           </Select>
 
@@ -204,10 +218,12 @@ export default function BugDisplay() {
               <SelectItem value="desc">Descending</SelectItem>
             </SelectContent>
           </Select>
+        </div>
 
         {/* Results count */}
         <div className="text-sm text-muted-foreground">
           {loading ? 'Loading...' : `Found ${data.length} bug${data.length !== 1 ? 's' : ''}`}
+          {showMyBugs && !loading && ' assigned to you'}
         </div>
       </div>
 
@@ -234,7 +250,6 @@ export default function BugDisplay() {
         onOpenChange={setEditDialogOpen}
         onSave={handleSave}
       />
-      </div>
     </div>
   )
 }

@@ -11,8 +11,6 @@ const Navbar = () => {
   
   // Cast user to ExtendedUser to access role
   const user = session?.user as ExtendedUser | undefined;
-  const userRole = user?.role;
-  const canAccessUsers = userRole === 'technical manager';
 
   const handleSignOut = async () => {
     await authClient.signOut();
@@ -42,8 +40,8 @@ const Navbar = () => {
             Submit A Bug
           </NavLink>
 
-          {/* Only show Users link if user has proper role */}
-          {canAccessUsers && (
+          {/* Show Users link to all authenticated users */}
+          {user && (
             <NavLink 
               to='/showUsers'
               className={({ isActive }) => 

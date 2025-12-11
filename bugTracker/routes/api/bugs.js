@@ -77,11 +77,14 @@ router.get(
         minAge,
         maxAge,
         closed,
+        assignedToMe,
         page,
         limit,
         sortBy,
         order
       } = req.query;
+
+      console.log('Query params:', { keywords, classification, closed, assignedToMe, sortBy, order });
 
       // Pagination
       const pageNum = parseInt(page) || 1;
@@ -91,26 +94,54 @@ router.get(
       // Build MongoDB query
       const query = {};
 
+      // Keywords search
       if (keywords) {
         query.$or = [
           { title: { $regex: keywords, $options: 'i' } },
-          { description: { $regex: keywords, $options: 'i' } }
+          { description: { $regex: keywords, $options: 'i' } },
+          { authorOfBug: { $regex: keywords, $options: 'i' }}
         ];
       }
 
+      // Classification filter
       if (classification) {
         query.classification = classification;
       }
 
+      //Filter by current user's assigned bugs
+      if (assignedToMe === 'true') {
+        const currentUserName = req.user.name; 
+        console.log('Filtering bugs assigned to:', currentUserName);
+        query.assignedUserName = currentUserName;
+      }
+
+      // Status/Closed filter
       if (closed !== undefined) {
+        console.log('Applying closed filter:', closed);
+        
         if (closed === 'true') {
-          query.closed = true;
-        } else {
-          query.$or = query.$or || [];
-          query.$or.push({ closed: false }, { closed: { $exists: false } });
+          query.$and = query.$and || [];
+          query.$and.push({
+            $or: [
+              { closed: true },
+              { statusLabel: 'closed' }
+            ]
+          });
+        } else if (closed === 'false') {
+          query.$and = query.$and || [];
+          query.$and.push({
+            $or: [
+              { closed: false },
+              { closed: { $exists: false } },
+              { statusLabel: 'open' }
+            ]
+          });
+        } else if (closed === 'resolved') {
+          query.statusLabel = 'resolved';
         }
       }
 
+      // Age filter
       if (minAge || maxAge) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -123,6 +154,8 @@ router.get(
           query.createdAt.$lte = new Date(today.getTime() - minAge * 24 * 60 * 60 * 1000);
         }
       }
+
+      console.log('Final query:', JSON.stringify(query, null, 2));
 
       // Sorting
       const allowedSortFields = ['classification', 'title', 'assignedUserName', 'authorOfBug', 'statusLabel', 'createdAt'];
@@ -156,19 +189,19 @@ router.get(
         .limit(limitNum)
         .toArray();
 
-      // Return empty array instead of 404 when no bugs found
+      console.log(`Found ${bugs.length} bugs`);
+
       if (!bugs.length) {
-        return res.status(200).json([]);
+        return res.status(200).json({ bugs: [] });
       }
 
-      res.status(200).json(bugs);
+      res.status(200).json({ bugs });
     } catch (err) {
       console.error('Error fetching bugs:', err);
       res.status(500).json({ error: 'Internal server error' });
     }
   }
 );
-
 // -----------------------------------------------------------------------------
 // Get bug by ID
 // -----------------------------------------------------------------------------

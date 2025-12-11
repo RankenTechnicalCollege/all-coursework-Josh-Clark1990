@@ -12,6 +12,8 @@ const router = express.Router();
 // Get all products------------------------------------------------------------------------------------------------------------
 router.get('/', async (req, res) => {
   console.log('Fetching all products');
+    console.log('Query params:', req.query);
+  console.log('Category value:', req.query.category);
   try {
     const db = await getDb();
     const productsCollection = db.collection('products');

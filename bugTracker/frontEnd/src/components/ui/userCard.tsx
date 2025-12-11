@@ -25,9 +25,13 @@ export function UserCard({ user, currentUser }: UserCardProps) {
   const [assignedBugsDialogOpen, setAssignedBugsDialogOpen] = useState(false);
   const [selectedUserForBugs, setSelectedUserForBugs] = useState<User | null>(null);
 
+  // Check if current user is a technical manager
+  const canEditUsers = currentUser?.role === 'technical manager';
+
   // Debug logging
   console.log('UserCard - Received currentUser:', currentUser);
   console.log('UserCard - User being displayed:', user);
+  console.log('UserCard - Can edit users:', canEditUsers);
 
   const handleSave = () => {
     console.log('User Updated Successfully');
@@ -71,32 +75,38 @@ export function UserCard({ user, currentUser }: UserCardProps) {
             </button>
           </div>
           
-          <div className="mt-4">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setIsEditDialogOpen(true)}
-            >
-              Edit User
-            </Button>
-          </div>
+          {/* Only show Edit button for technical managers */}
+          {canEditUsers && (
+            <div className="mt-4">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setIsEditDialogOpen(true)}
+              >
+                Edit User
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <EditUserDialog
-        user={user}
-        currentUser={currentUser}
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        onSave={handleSave}
-      />
+      {/* Only render edit dialog for technical managers */}
+      {canEditUsers && (
+        <EditUserDialog
+          user={user}
+          currentUser={currentUser}
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          onSave={handleSave}
+        />
+      )}
 
       <AssignedBugsDialog
         user={selectedUserForBugs}
         open={assignedBugsDialogOpen}
         onOpenChange={setAssignedBugsDialogOpen}
         onViewBugDetails={() => {
-        setAssignedBugsDialogOpen(false);
+          setAssignedBugsDialogOpen(false);
         }}
       />
     </>

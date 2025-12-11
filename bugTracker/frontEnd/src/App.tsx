@@ -91,19 +91,19 @@ function AppContent() {
             } 
           />
 
-          {/* PROTECTED USERS PAGE */}
-          <Route 
-            path="/showUsers" 
-            element={
-              <>
-                {console.log('About to render UsersPage with session.user:', session.user)}
-                <ProtectedRoute allowedRoles={['technical manager']}>
-                  <UsersPage currentUser={session.user} />
-                </ProtectedRoute>
-              </>
-            } 
-          />
-          <Route path="/profile" element={<UserProfilePage />} />
+         {/* USERS PAGE - All authenticated users can view */}
+        <Route 
+          path="/showUsers" 
+          element={
+            <>
+              {console.log('About to render UsersPage with session.user:', session.user)}
+              <ProtectedRoute allowedRoles={['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']}>
+                <UsersPage currentUser={session.user} />
+              </ProtectedRoute>
+            </>
+          } 
+        />
+        <Route path="/profile" element={<UserProfilePage />} />
         </Routes>
       </main>
 

@@ -30,7 +30,9 @@ router.get(
       debugGet('Fetching all users');
       const db = mongoClient.db();
 
-      const { keywords, role, minAge, maxAge, page, limit, sortBy, order } = req.query;
+      // Frontend sends 'name' instead of 'keywords', so support both
+      const { name, keywords, role, hasBugs, page, limit, sortBy, order } = req.query;
+      const searchTerm = name || keywords; // Support both parameters
 
       // Pagination
       const pageNum = parseInt(page) || 1;
@@ -40,37 +42,50 @@ router.get(
       // Build filter
       const filter = {};
       
-      if (keywords) {
+      // Search by name or email
+      if (searchTerm) {
         filter.$or = [
-          { email: { $regex: keywords, $options: 'i' } },
-          { givenName: { $regex: keywords, $options: 'i' } },
-          { familyName: { $regex: keywords, $options: 'i' } },
-          { name: { $regex: keywords, $options: 'i' } }
+          { email: { $regex: searchTerm, $options: 'i' } },
+          { givenName: { $regex: searchTerm, $options: 'i' } },
+          { familyName: { $regex: searchTerm, $options: 'i' } },
+          { name: { $regex: searchTerm, $options: 'i' } }
         ];
       }
 
+      // Filter by role
       if (role) {
         filter.role = role;
       }
 
-      if (minAge || maxAge) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const dateFilter = {};
-        if (maxAge) {
-          dateFilter.$gte = new Date(today.getTime() - maxAge * 24 * 60 * 60 * 1000);
+      // Filter by whether user has assigned bugs
+      if (hasBugs) {
+        if (hasBugs === 'true') {
+          filter.assignedBugs = { $exists: true, $ne: [], $not: { $size: 0 } };
+        } else if (hasBugs === 'false') {
+          filter.$or = [
+            { assignedBugs: { $exists: false } },
+            { assignedBugs: [] },
+            { assignedBugs: { $size: 0 } }
+          ];
         }
-        if (minAge) {
-          dateFilter.$lte = new Date(today.getTime() - minAge * 24 * 60 * 60 * 1000);
-        }
-
-        filter.createdAt = dateFilter;
       }
 
       // Sorting
       const sortDirection = order === 'desc' ? -1 : 1;
-      const sort = sortBy ? { [sortBy]: sortDirection } : { role: 1 };
+      let sort = { role: 1, name: 1 }; 
+      
+      if (sortBy) {
+        
+        const sortMapping = {
+          'name': 'name',
+          'role': 'role',
+          'createdAt': 'createdAt',
+          'email': 'email'
+        };
+        
+        const sortField = sortMapping[sortBy] || 'name';
+        sort = { [sortField]: sortDirection, name: 1 }; 
+      }
 
       // Projection
       const projection = {
@@ -93,12 +108,15 @@ router.get(
         .limit(limitNum)
         .toArray();
 
+      // Return empty array instead of 404 when no users found (better UX)
       if (!users || users.length === 0) {
-        return res.status(404).json({ error: 'No users found' });
+        return res.status(200).json({ users: [] });
       }
 
       debugGet(`Found ${users.length} users`);
-      res.status(200).json(users);
+      
+      // Wrap in object to match frontend expectation
+      res.status(200).json({ users });
     } catch (err) {
       console.error('Error fetching users:', err);
       res.status(500).json({ error: 'Internal server error' });
