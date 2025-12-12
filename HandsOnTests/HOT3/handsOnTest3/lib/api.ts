@@ -23,17 +23,18 @@ const handleResponse = async (response: Response) => {
 export const getAllProducts = async (filters?: SearchFilters) => {
   let url = API_BASE_URL
 
-  if (filters) {
-    const params = new URLSearchParams()
-    
-    if (filters.keywords) params.append('keywords', filters.keywords)
-    if (filters.category) params.append('category', filters.category)
-    if (filters.minPrice !== undefined) params.append('minPrice', filters.minPrice.toString())
-    if (filters.maxPrice !== undefined) params.append('maxPrice', filters.maxPrice.toString())
-    if (filters.sortBy) params.append('sortBy', filters.sortBy)
-    if (filters.order) params.append('order', filters.order)
-    if (filters.page) params.append('page', filters.page.toString())
-    if (filters.limit) params.append('limit', filters.limit.toString())
+if (filters) {
+  const params = new URLSearchParams()
+  
+  if (filters.keywords) params.append('keywords', filters.keywords)
+  if (filters.category) params.append('category', filters.category)
+  if (filters._id) params.append('_id', filters._id)  // ← ADD THIS LINE
+  if (filters.minPrice !== undefined) params.append('minPrice', filters.minPrice.toString())
+  if (filters.maxPrice !== undefined) params.append('maxPrice', filters.maxPrice.toString())
+  if (filters.sortBy) params.append('sortBy', filters.sortBy)
+  if (filters.order) params.append('order', filters.order)
+  if (filters.page) params.append('page', filters.page.toString())
+  if (filters.limit) params.append('limit', filters.limit.toString())
 
     const queryString = params.toString()
     if (queryString) {

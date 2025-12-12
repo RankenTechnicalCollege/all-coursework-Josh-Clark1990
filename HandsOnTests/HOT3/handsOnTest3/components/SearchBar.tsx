@@ -4,10 +4,12 @@ import type React from "react"
 
 import { useState } from "react"
 import "@/styles/search-bar.css"
+import { se } from "date-fns/locale"
 
 export interface SearchFilters {
   keywords?: string
   category?: string
+  _id?: string
   minPrice?: number
   maxPrice?: number
   sortBy?: 'name' | 'price' | 'category' | 'createdAt'
@@ -25,7 +27,7 @@ interface SearchBarProps {
 
 export default function SearchBar({ onSearch, onReset, currentPage = 1, totalPages = 1 }: SearchBarProps) {
   const [searchTerm, setSearchTerm] = useState("")
-  const [searchType, setSearchType] = useState<"keywords" | "category">("keywords")
+  const [searchType, setSearchType] = useState<"keywords" | "category" | "_id"> ("keywords")
   const [minPrice, setMinPrice] = useState("")
   const [maxPrice, setMaxPrice] = useState("")
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'category' | 'createdAt'>('category')
@@ -50,6 +52,10 @@ export default function SearchBar({ onSearch, onReset, currentPage = 1, totalPag
 
     if (searchType === "category" && searchTerm.trim()) {
       filters.category = searchTerm.trim()
+    }
+
+    if (searchType === "_id" && searchTerm.trim()) {
+      filters._id = searchTerm.trim() 
     }
 
     if (minPrice) {
@@ -81,11 +87,12 @@ export default function SearchBar({ onSearch, onReset, currentPage = 1, totalPag
       <form onSubmit={handleSubmit} className="search-form">
         <select 
           value={searchType} 
-          onChange={(e) => setSearchType(e.target.value as "keywords" | "category")} 
+          onChange={(e) => setSearchType(e.target.value as "keywords" | "category" | "_id")} 
           className="search-type"
         >
-          <option value="keywords">Search by Keywords</option>
-          <option value="category">Search by Category</option>
+          <option value="keywords">Search by Name</option>
+          <option value="category">Search by Genre</option>
+          <option value="_id">Search by ID</option>
         </select>
 
         <input

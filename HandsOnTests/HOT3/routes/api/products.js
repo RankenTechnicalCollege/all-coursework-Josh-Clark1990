@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
     const db = await getDb();
     const productsCollection = db.collection('products');
 
-    const { keywords, category, maxPrice, minPrice, sortBy, page, pageSize } = req.query;
+    const { keywords, category, maxPrice, minPrice, sortBy, page, pageSize, _id } = req.query;
 
     const pageNum = parseInt(page) || 1;
     const limitNum = parseInt(pageSize) || 9;
@@ -32,6 +32,14 @@ router.get('/', async (req, res) => {
 
     if (category) {
       filter.category = { $regex: category, $options: 'i' };
+    }
+    
+    if (_id) {
+      if (ObjectId.isValid(_id)) {
+        filter._id = new ObjectId(_id);
+      } else {
+        return res.status(400).json({ error: 'Invalid product ID format' });
+      }
     }
 
     if (minPrice || maxPrice) {
