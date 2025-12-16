@@ -12,11 +12,12 @@ await client.connect();
 const db = client.db(dbName); 
 
 export const auth = betterAuth({
-  baseURL: 'http://localhost:5000',
+  baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:5000',
   trustedOrigins: [
     "http://localhost:5173",
-    "http://localhost:8080",
+    "http://localhost:8080", 
     "http://localhost:5000",
+    process.env.BETTER_AUTH_URL,
   ],
   database: mongodbAdapter(db),
   emailAndPassword: {

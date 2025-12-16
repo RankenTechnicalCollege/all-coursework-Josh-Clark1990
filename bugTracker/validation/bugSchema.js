@@ -3,7 +3,6 @@ import { z } from 'zod';
 const bugCreateSchema = z.object({
     title: z.string().min(1),
     description: z.string().min(1),
-    stepsToReproduce: z.string().min(1),
 });
 
 const bugIdSchema = z.object({

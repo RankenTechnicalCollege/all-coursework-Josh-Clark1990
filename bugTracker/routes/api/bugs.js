@@ -66,7 +66,7 @@ router.get(
   '/',
   isAuthenticated,
   hasPermissions('canViewData'),
-  hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager']),
+  hasAnyRole(['developer', 'business analyst', 'quality analyst', 'product manager', 'technical manager', 'user']),
   async (req, res) => {
     try {
       debugList('Fetching all bugs');
@@ -263,7 +263,7 @@ router.post(
   validate(bugCreateSchema, 'body'),
   async (req, res) => {
     try {
-      const { title, description, stepsToReproduce } = req.body;
+      const { title, description, priority } = req.body;
       debugCreate('Creating new bug');
 
       const db = mongoClient.db();
@@ -272,7 +272,6 @@ router.post(
         id: `bug_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         title,
         description,
-        stepsToReproduce,
         authorOfBug: req.user.name,
         status: false,
         statusLabel: 'open',
@@ -295,8 +294,8 @@ router.post(
           target: { bugId: newBug.id },
           update: { 
             title, 
-            description, 
-            stepsToReproduce, 
+            description,
+            priority,
             authorOfBug: req.user.name
           },
           auth: req.user

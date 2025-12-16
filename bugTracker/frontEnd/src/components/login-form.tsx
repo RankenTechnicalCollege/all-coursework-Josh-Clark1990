@@ -35,18 +35,11 @@ export function LoginForm({
         onSuccess: () => {
           setError(null)
         },
-        onError: (ctx) => {
+        onError: () => {
           setError('Invalid email or password')
         }
       }
     );
-  }
-
-  const handleGoogleSignIn = async () => {
-    await authClient.signIn.social({
-      provider: "google",
-      callbackURL: "/",
-    });
   }
 
   return (
@@ -96,14 +89,6 @@ export function LoginForm({
               </Field>
               <Field>
                 <Button type="submit" className="w-full">Login</Button>
-                <Button 
-                  variant="outline" 
-                  type="button"
-                  className="w-full"
-                  onClick={handleGoogleSignIn}
-                >
-                  Login with Google
-                </Button>
                 <FieldDescription className="text-center">
                   Don't have an account?{' '}
                   <a 

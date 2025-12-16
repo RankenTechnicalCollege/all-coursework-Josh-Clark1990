@@ -109,6 +109,8 @@ export function UserCard({ user, currentUser }: UserCardProps) {
           setAssignedBugsDialogOpen(false);
         }}
       />
+
+
     </>
   );
 }

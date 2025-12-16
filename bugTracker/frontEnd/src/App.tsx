@@ -9,12 +9,12 @@ import BugDisplay from './components/bugDisplay';
 import Navbar from '@/components/ui/navigation-menu';
 import { BrowserRouter } from 'react-router-dom';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Routes, Route, useSearchParams } from 'react-router-dom';
 import { AddBugDialog } from '@/components/addBugDialog'; 
 import { UsersPage } from '@/components/showUsers';
 import { ProtectedRoute } from '@/components/protectedRoute';
 import UserProfilePage from '@/components/userProfile';
-import { ToastContainer, toast } from 'react-toastify';
+import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css'; 
 
 function App() {

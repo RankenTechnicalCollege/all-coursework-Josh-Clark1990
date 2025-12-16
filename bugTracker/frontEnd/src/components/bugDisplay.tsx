@@ -21,6 +21,8 @@ export default function BugDisplay() {
   const [selectedBug, setSelectedBug] = useState<Bug | null>(null)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [userName, setUserName] = useState<string | null>(null)
 
   // Search and filter states
   const [searchKeywords, setSearchKeywords] = useState('')
@@ -43,6 +45,9 @@ export default function BugDisplay() {
       if (sortBy && sortBy !== 'all') params.append('sortBy', sortBy)
       if (sortOrder && sortOrder !== 'all') params.append('order', sortOrder)
       if (showMyBugs) params.append('assignedToMe', 'true')
+      
+      // For "user" role, only show bugs they created
+      if (userRole === 'user' && userName) params.append('keywords', userName)
 
       const response = await fetch(`http://localhost:5000/api/bugs?${params.toString()}`, {
         credentials: 'include',
@@ -56,7 +61,14 @@ export default function BugDisplay() {
       }
       
       const result = await response.json()
-      setData(result.bugs || result || [])
+      
+      // For "user" role, filter to only bugs they authored
+      let bugs = result.bugs || result || []
+      if (userRole === 'user' && userName) {
+        bugs = bugs.filter((bug: Bug) => bug.authorOfBug === userName)
+      }
+      
+      setData(bugs)
     } catch (err) {
       console.error('Error fetching bugs:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch bugs')
@@ -65,11 +77,35 @@ export default function BugDisplay() {
     }
   }
 
+  // Fetch user role and name on mount
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/bugs/me', {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (response.ok) {
+          const userData = await response.json()
+          setUserRole(userData.role || null)
+          setUserName(userData.name || null)
+        }
+      } catch (err) {
+        console.error('Error fetching user info:', err)
+      }
+    }
+    
+    fetchUserInfo()
+  }, [])
+
   // Fetch bugs when filters change
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchBugs()
-  }, [searchKeywords, classification, closedFilter, sortBy, sortOrder, showMyBugs])
+  }, [searchKeywords, classification, closedFilter, sortBy, sortOrder, showMyBugs, userRole, userName])
 
   const handleViewBug = (bug: Bug) => {
     setSelectedBug(bug)

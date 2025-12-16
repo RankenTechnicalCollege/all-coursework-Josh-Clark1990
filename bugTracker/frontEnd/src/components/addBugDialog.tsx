@@ -23,13 +23,12 @@ interface AddBugDialogProps {
 export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [stepsToReproduce, setStepsToReproduce] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    console.log('Submitting bug:', { title, description, stepsToReproduce })
+    console.log('Submitting bug:', { title, description})
 
     try {
       const response = await fetch('http://localhost:5000/api/bugs', {
@@ -40,8 +39,7 @@ export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) 
         credentials: 'include',
         body: JSON.stringify({
           title,
-          description,
-          stepsToReproduce,
+          description
         }),
       })
 
@@ -56,7 +54,6 @@ export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) 
       // Reset form
       setTitle('')
       setDescription('')
-      setStepsToReproduce('')
       setError(null)
       
       onSave()
@@ -103,18 +100,6 @@ export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) 
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Enter bug description"
-                className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2"
-                required
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="stepsToReproduce">Steps to Reproduce</FieldLabel>
-              <textarea
-                id="stepsToReproduce"
-                value={stepsToReproduce}
-                onChange={(e) => setStepsToReproduce(e.target.value)}
-                placeholder="Enter steps taken to reproduce the bug"
                 className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2"
                 required
               />

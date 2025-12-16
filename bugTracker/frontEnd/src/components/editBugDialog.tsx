@@ -45,6 +45,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
   
   const [error, setError] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [currentUserName, setCurrentUserName] = useState<string | null>(null)
   const [assignableUsers, setAssignableUsers] = useState<Array<{
     _id: string;
     name: string;
@@ -84,9 +85,10 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
         })
         
         if (response.ok) {
-          const userData = await response.json()
-          setUserRole(userData.role)
-        }
+              const userData = await response.json()
+              setUserRole(userData.role)
+              setCurrentUserName(userData.name || null)
+            }
       } catch (err) {
         console.error('Failed to fetch user role:', err)
       }
@@ -112,6 +114,8 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
     }
   }, [bug, open])
 
+  const canEditDescription = Boolean(currentUserName && bug?.authorOfBug && currentUserName === bug.authorOfBug)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -128,7 +132,18 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
       }
       
       const userData = await userResponse.json()
-      const userId = userData._id
+      const userId = userData._id || userData.id
+
+      const updatePayload: any = {
+        statusLabel,
+        classification,
+        assignedTo: assignedTo,
+        stepsToReproduce,
+      }
+
+      if (canEditDescription) {
+        updatePayload.description = description
+      }
 
       const bugResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}`, {
         method: 'PATCH',
@@ -136,13 +151,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({
-          description,
-          statusLabel,
-          classification,
-          assignedTo: assignedTo,
-          stepsToReproduce,
-        }),
+        body: JSON.stringify(updatePayload),
       })
 
       const bugData = await bugResponse.json()
@@ -224,6 +233,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
             )}
 
             <FieldGroup>
+              
               <Field>
                 <FieldLabel htmlFor="description">Description</FieldLabel>
                 <textarea
@@ -231,10 +241,15 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Bug description"
-                  className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2"
+                  readOnly={!canEditDescription}
+                  className={`w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2 ${!canEditDescription ? 'opacity-60 cursor-not-allowed' : ''}`}
                 />
+                {!canEditDescription && (
+                  <div className="text-sm text-muted-foreground mt-1">Only the bug author can edit the description.</div>
+                )}
               </Field>
 
+              {['developer'].includes(userRole || '') && (
               <Field>
                 <FieldLabel htmlFor="stepsToReproduce">Steps to Reproduce</FieldLabel>
                 <textarea
@@ -245,6 +260,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
                   className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2"
                 />
               </Field>
+              )}
 
               <Field>
                 <FieldLabel htmlFor="newComment">Add Comment</FieldLabel>
@@ -256,6 +272,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
                   className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2"
                 />
               </Field>
+              
 
               {['technical manager', 'business analyst', 'product manager'].includes(userRole || '') && (
                 <Field>
@@ -272,6 +289,8 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
                 </Field>
               )}
 
+
+               {['technical manager', 'business analyst', 'product manager'].includes(userRole || '') && (
               <Field>
                 <FieldLabel htmlFor="statusLabel">Status</FieldLabel>
                 <Select value={statusLabel} onValueChange={setStatusLabel}>
@@ -285,7 +304,10 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
                   </SelectContent>
                 </Select>
               </Field>
+               )}
               
+
+               {['technical manager', 'business analyst', 'product manager'].includes(userRole || '') && (
               <Field>
                 <FieldLabel htmlFor="assignedTo">Assigned To</FieldLabel>
                 {assignableUsers.length === 0 ? (
@@ -311,6 +333,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
                   </Select>
                 )}
               </Field>
+               )}
 
               {/* Test Case Section - Only for Quality Analysts */}
               {userRole === 'quality analyst' && (

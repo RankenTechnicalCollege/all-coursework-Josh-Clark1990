@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { UserCard, type User } from './ui/userCard'; 
+import { Button } from './ui/button';
+import { EditUserDialog } from './editUserDialog';
 
 export function UserProfilePage() { 
   const [user, setUser] = useState<User | null>(null); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const fetchUser = async () => {
     try {
@@ -70,7 +73,19 @@ export function UserProfilePage() {
       <div className="max-w-md">
         <UserCard user={user} currentUser={user} />
       </div>
+
+      <Button className="mt-6" onClick={() => setEditDialogOpen(true)}>Edit Profile</Button>
+
+      <EditUserDialog 
+        user={user}
+        currentUser={user}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSave={fetchUser}
+      />
+
     </div>
+
   );
 }
 

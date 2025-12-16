@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -22,6 +21,7 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { useState } from 'react'
+import { Button } from "./ui/button"
 
 export function SignupForm({
   className,
@@ -182,11 +182,9 @@ export function SignupForm({
                 </FieldDescription>
               </Field>
 
+              <Button type="submit" className="w-full">Sign Up</Button>
+
               <Field>
-                <Button type="submit" className="w-full">Create Account</Button>
-                <Button variant="outline" type="button" className="w-full">
-                  Sign up with Google
-                </Button>
                   <FieldDescription className="text-center">
                     Already have an account?{' '}
                     <a href="#" onClick={(e) => {
