@@ -81,7 +81,8 @@ router.get(
         page,
         limit,
         sortBy,
-        order
+        order,
+        priority
       } = req.query;
 
       console.log('Query params:', { keywords, classification, closed, assignedToMe, sortBy, order });
@@ -155,6 +156,11 @@ router.get(
         }
       }
 
+      // Priority filter
+      if (priority) {
+        query.priority = priority
+      }
+
       console.log('Final query:', JSON.stringify(query, null, 2));
 
       // Sorting
@@ -177,7 +183,9 @@ router.get(
         createdAt: 1,
         lastUpdated: 1,
         closed: 1,
-        priority: 1
+        priority: 1,
+        hoursWorked: 1,
+
       };
 
       const db = mongoClient.db();
@@ -235,7 +243,8 @@ router.get(
             assignedUserName: 1,
             closed: 1,
             closedDate: 1,
-            priority: 1
+            priority: 1,
+            hoursWorked: 1,
           }
         }
       );
@@ -278,7 +287,11 @@ router.post(
         closed: false,
         createdAt: new Date(),
         lastUpdated: new Date(),
-        priority,
+        priority: false,
+        hoursWorked: 0,
+        classification: 'unclassified',
+        assignedUser: null,
+        assignedUserName: null,
       };
 
       const result = await db.collection('bug').insertOne(newBug);
@@ -296,7 +309,8 @@ router.post(
             title, 
             description,
             priority,
-            authorOfBug: req.user.name
+            authorOfBug: req.user.name,
+            hoursWorked,
           },
           auth: req.user
         });
@@ -581,6 +595,105 @@ router.patch(
     } catch (err) {
       console.error('Close bug error:', err);
       res.status(500).json({ error: 'Failed to close bug' });
+    }
+  }
+);
+
+// -----------------------------------------------------------------------------
+// Update bug priority
+// -----------------------------------------------------------------------------
+router.patch(
+  '/:bugId/priority',
+  isAuthenticated,
+  hasAnyRole(['business analyst', 'quality analyst', 'product manager', 'technical manager']),
+  validate(bugIdSchema, 'params'),
+  async (req, res) => {
+    try {
+      const { bugId } = req.params;
+      const { priority } = req.body;
+      const lastUpdated = new Date();
+      debugUpdate(`Updating bug ${bugId} priority to ${priority}`);
+
+      // Validate priority
+      if (!['high', 'normal'].includes(priority)) {
+        return res.status(400).json({ error: 'Invalid priority value' });
+      }
+
+      const db = mongoClient.db();
+      const result = await db.collection('bug').updateOne(
+        { _id: new ObjectId(bugId) },
+        { $set: { priority, lastUpdated } }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ error: 'Bug not found' });
+      }
+
+      res.status(200).json({
+        message: 'Bug priority updated successfully',
+        priority,
+        lastUpdated
+      });
+    } catch (err) {
+      console.error('Update priority error:', err);
+      res.status(500).json({ error: 'Failed to update priority' });
+    }
+  }
+);
+
+// -----------------------------------------------------------------------------
+// Update bug hours worked
+// -----------------------------------------------------------------------------
+router.patch(
+  '/:bugId/hours-worked',
+  isAuthenticated,
+  hasAnyRole(['developer']),
+  validate(bugIdSchema, 'params'),
+  async (req, res) => {
+    try {
+      const { bugId } = req.params;
+      const { hoursWorked } = req.body;
+      const lastUpdated = new Date();
+      debugUpdate(`Updating bug ${bugId} hours worked to ${hoursWorked}`);
+
+      // Validate hoursWorked is a positive number
+      if (typeof hoursWorked !== 'number' || hoursWorked < 0) {
+        return res.status(400).json({ error: 'Hours worked must be a positive number' });
+      }
+
+      const db = mongoClient.db();
+      const result = await db.collection('bug').updateOne(
+        { _id: new ObjectId(bugId) },
+        { $set: { hoursWorked, lastUpdated } }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ error: 'Bug not found' });
+      }
+
+      // Log edit
+      try {
+        const editsDb = await getDb();
+        await editsDb.collection('edits').insertOne({
+          timestamp: new Date(),
+          col: 'Bug',
+          op: 'update',
+          target: { bugId },
+          update: { hoursWorked },
+          auth: req.user
+        });
+      } catch (editErr) {
+        console.error('Failed to log edit:', editErr);
+      }
+
+      res.status(200).json({
+        message: 'Bug hours worked updated successfully',
+        hoursWorked,
+        lastUpdated
+      });
+    } catch (err) {
+      console.error('Update hours worked error:', err);
+      res.status(500).json({ error: 'Failed to update hours worked' });
     }
   }
 );

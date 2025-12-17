@@ -1,4 +1,4 @@
-// components/edit-bug-dialog.tsx
+// add feature to make it so only editing a bug can be done by author of the bug, the user the bug is assigned to, or technical manager or product manager, other users can only view and comment on the bug or the quality analyst can add
 import { useState, useEffect } from 'react'
 import { type Bug } from './ui/columns'
 import {
@@ -37,6 +37,8 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
   const [classification, setClassification] = useState('')
   const [assignedTo, setAssignedTo] = useState('')
   const [newComment, setNewComment] = useState('')
+  const [priority, setPriority] = useState('normal') //'normal' is the default priority
+  const [hoursWorked, setHoursWorked] = useState(0)
   
   // Test case fields
   const [testCaseTitle, setTestCaseTitle] = useState('')
@@ -104,6 +106,8 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
       setAssignedTo(bug.assignedUserName || '')
       setStepsToReproduce(bug.stepsToReproduce || '')
       setNewComment('')
+      setPriority(bug.priority || 'normal')
+      setHoursWorked(0)
       
       // Reset test case fields
       setTestCaseTitle('')
@@ -177,6 +181,41 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
         if (!commentResponse.ok) {
           const commentData = await commentResponse.json().catch(() => ({}))
           throw new Error(commentData.message || 'Failed to add comment')
+        }
+      }
+      
+      //update hours worked if needed
+      if (hoursWorked && hoursWorked > 0 && userRole === 'developer') {
+        console.log('Updating hours worked:', hoursWorked)
+        const hoursWorkedResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}/hours-worked`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ hoursWorked }),
+        })
+        
+        if (!hoursWorkedResponse.ok) {
+          const hoursData = await hoursWorkedResponse.json().catch(() => ({}))
+          throw new Error(hoursData.message || 'Failed to update hours worked')
+        }
+      }
+
+      //Change priority if needed
+      if (priority !== bug.priority && (userRole === 'technical manager' || userRole === 'business analyst' || userRole === 'product manager')) {
+        const priorityResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}/priority`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ priority }),
+        })
+
+        if (!priorityResponse.ok) {
+          const priorityData = await priorityResponse.json().catch(() => ({}))
+          throw new Error(priorityData.message || 'Failed to update priority')
         }
       }
 
@@ -272,7 +311,18 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
                   className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2"
                 />
               </Field>
-              
+
+              {['developer'].includes(userRole || '') && (
+                <Field>
+                  <FieldLabel htmlFor="hoursWorked">Hours Worked</FieldLabel>
+                  <Input
+                    id="hoursWorked"
+                    type="number"
+                    value={hoursWorked}
+                    onChange={(e) => setHoursWorked(Number(e.target.value))}
+                  />
+                </Field>
+              )}
 
               {['technical manager', 'business analyst', 'product manager'].includes(userRole || '') && (
                 <Field>
@@ -305,8 +355,24 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
                 </Select>
               </Field>
                )}
-              
 
+                
+               {['technical manager', 'business analyst', 'product manager'].includes(userRole || '') && (
+                <Field>
+                  <FieldLabel htmlFor ="priority">Priority</FieldLabel>
+                  <Select value={priority} onValueChange={setPriority}>
+                    <SelectTrigger id="priority">
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="normal">Normal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+               )}
+
+              
                {['technical manager', 'business analyst', 'product manager'].includes(userRole || '') && (
               <Field>
                 <FieldLabel htmlFor="assignedTo">Assigned To</FieldLabel>

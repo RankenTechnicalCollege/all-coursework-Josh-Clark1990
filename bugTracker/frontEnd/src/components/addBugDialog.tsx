@@ -17,16 +17,18 @@ import {
 interface AddBugDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: () => void
+  onSave: () => void  // Now synchronous
 }
 
 export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsSubmitting(true)
 
     console.log('Submitting bug:', { title, description})
 
@@ -43,24 +45,33 @@ export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) 
         }),
       })
 
-    const data = await response.json()
-    console.log('Response status:', response.status)
-    console.log('Response data:', data)
+      const data = await response.json()
+      console.log('Response status:', response.status)
+      console.log('Response data:', data)
 
       if (!response.ok) {
-        throw new Error('Failed to submit bug')
+        throw new Error(data.error || 'Failed to submit bug')
       }
+
+      console.log('Bug created successfully, refreshing list...')
 
       // Reset form
       setTitle('')
       setDescription('')
       setError(null)
       
-      onSave()
+      // Close dialog first for better UX
       onOpenChange(false)
+      
+      // Trigger refresh (this is now synchronous - just updates state)
+      console.log('Calling onSave to trigger refresh')
+      onSave()
+      
     } catch (err) {
       console.error('Error adding bug:', err)
-      setError('Failed to add bug')
+      setError(err instanceof Error ? err.message : 'Failed to add bug')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -76,7 +87,7 @@ export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) 
 
         <form onSubmit={handleSubmit}>
           {error && (
-            <div className="mb-4 text-sm text-red-600">
+            <div className="mb-4 text-sm text-red-600 bg-red-50 p-3 rounded">
               {error}
             </div>
           )}
@@ -90,6 +101,7 @@ export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) 
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Enter bug title"
                 required
+                disabled={isSubmitting}
               />
             </Field>
 
@@ -102,6 +114,7 @@ export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) 
                 placeholder="Enter bug description"
                 className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2"
                 required
+                disabled={isSubmitting}
               />
             </Field>
 
@@ -112,11 +125,12 @@ export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) 
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button type="submit" variant="default">
-              Submit Bug
+            <Button type="submit" variant="default" disabled={isSubmitting}>
+              {isSubmitting ? 'Submitting...' : 'Submit Bug'}
             </Button>
           </div>
         </form>

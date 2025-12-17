@@ -1,62 +1,49 @@
 "use client"
 
 import { type ColumnDef } from "@tanstack/react-table"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
+import { LucideBadgeAlert } from "lucide-react"
 
 export type Bug = {
   _id: string
-  id?: string
-  bugId?: string
-  title?: string
-  description?: string
-  stepsToReproduce?: string
-  authorOfBug?: string
-  statusLabel?: string
-  submittedBy?: string
-  status?: boolean
-  assignedUser?: string
-  assignedUserName?: string 
-  assignedTo?: string
-  comments?: string[]
-  testCases?: string[]
-  createdAt?: string
-  lastUpdated?: string
-  classification?: string
+  title: string
+  description: string
+  statusLabel: string
+  classification: string
+  authorOfBug: string
+  assignedUserName: string
+  stepsToReproduce: string
+  priority: string
+  hoursWorked: number
 }
 
 export const columns = (
   onView: (bug: Bug) => void,   // For viewing bug details
   onEdit: (bug: Bug) => void    // For editing bug
 ): ColumnDef<Bug>[] => [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={table.getIsAllRowsSelected()}
-        onCheckedChange={(value) => table.toggleAllRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
 
   {
-  accessorKey: "title",
-  header: "Title",
-  cell: ({ row }) => {
-    const title = row.getValue("title") as string
-    return <span>{title || "Unassigned"}</span>
+    accessorKey: "priority",
+    header: "Priority",
+    cell: ({ row }) => {
+      const priority = row.getValue("priority") as boolean
+      return (
+        <div className="flex items-center gap-2">
+          {priority && <LucideBadgeAlert className="w-5 h-5 text-red-600" />}
+          <span className="capitalize">{priority ? "High" : "Normal"}</span>
+        </div>
+      )
+    },
   },
-},
+  
+  {
+    accessorKey: "title",
+    header: "Title",
+    cell: ({ row }) => {
+      const title = row.getValue("title") as string
+      return <span>{title || "Unassigned"}</span>
+    },
+  },
 
   {
     accessorKey: "bugId",
@@ -71,6 +58,15 @@ export const columns = (
           {bugId}
         </button>
       )
+    },
+  },
+
+  {
+    accessorKey: "hoursWorked",
+    header: "Hours Worked",
+    cell: ({ row }) => {
+      const hoursWorked = row.getValue("hoursWorked") as number
+      return <span>{hoursWorked || "0"}</span>
     },
   },
   

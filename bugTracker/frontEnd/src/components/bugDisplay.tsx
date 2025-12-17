@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { type Bug, columns } from "./ui/columns"
 import { DataTable } from "./ui/dataTable"
 import { ViewBugDialog } from "./viewBugInfoDialog"
 import { EditBugDialog } from "./editBugDialog"
+import { AddBugDialog } from './addBugDialog'
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, X, RefreshCw } from "lucide-react"
+import { Search, X, RefreshCw, LucideArrowBigLeft, LucideArrowBigRight } from "lucide-react"
 
 export default function BugDisplay() { 
   const [data, setData] = useState<Bug[]>([])
@@ -23,21 +25,48 @@ export default function BugDisplay() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [userName, setUserName] = useState<string | null>(null)
+  const [userInfoLoaded, setUserInfoLoaded] = useState(false)
 
-  // Search and filter states
+  // URL params for add bug dialog
+  const [searchParams, setSearchParams] = useSearchParams()
+  const addBugOpen = searchParams.get('addBug') === 'true'
+
+  // Search and filter states - DEFAULT SORT TO NEWEST FIRST
   const [searchKeywords, setSearchKeywords] = useState('')
   const [classification, setClassification] = useState<string>('')
   const [closedFilter, setClosedFilter] = useState<string>('')
-  const [sortBy, setSortBy] = useState<string>('')
-  const [sortOrder, setSortOrder] = useState<string>('')
+  const [sortBy, setSortBy] = useState<string>('createdAt')  // Default sort field
+  const [sortOrder, setSortOrder] = useState<string>('desc')  // Default to descending (newest first)
   const [showMyBugs, setShowMyBugs] = useState(false)
+  const [priority, setPriority] = useState<string>('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)  // Add refresh trigger
+  
+  // Pagination configuration
+  const itemsPerPage = 10
+  const totalPages = Math.ceil(data.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedData = data.slice(startIndex, endIndex)
 
-  const fetchBugs = async () => {
+  // Handle add bug dialog
+  const setAddBugOpen = (open: boolean) => {
+    if (open) {
+      searchParams.set('addBug', 'true')
+    } else {
+      searchParams.delete('addBug')
+    }
+    setSearchParams(searchParams)
+  }
+
+  const fetchBugs = useCallback(async () => {
+    console.log('fetchBugs starting...')
     try {
       setLoading(true)
       
       // Build query parameters
       const params = new URLSearchParams()
+      params.append('limit', '1000')
       
       if (searchKeywords) params.append('keywords', searchKeywords)
       if (classification && classification !== 'all') params.append('classification', classification)
@@ -45,9 +74,7 @@ export default function BugDisplay() {
       if (sortBy && sortBy !== 'all') params.append('sortBy', sortBy)
       if (sortOrder && sortOrder !== 'all') params.append('order', sortOrder)
       if (showMyBugs) params.append('assignedToMe', 'true')
-      
-      // For "user" role, only show bugs they created
-      if (userRole === 'user' && userName) params.append('keywords', userName)
+      if (priority && priority !== 'all') params.append('priority', priority)
 
       const response = await fetch(`http://localhost:5000/api/bugs?${params.toString()}`, {
         credentials: 'include',
@@ -66,8 +93,10 @@ export default function BugDisplay() {
       let bugs = result.bugs || result || []
       if (userRole === 'user' && userName) {
         bugs = bugs.filter((bug: Bug) => bug.authorOfBug === userName)
+        console.log('Filtered to user bugs:', bugs.length)
       }
       
+      console.log('Setting data with', bugs.length, 'bugs')
       setData(bugs)
     } catch (err) {
       console.error('Error fetching bugs:', err)
@@ -75,9 +104,9 @@ export default function BugDisplay() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [searchKeywords, classification, closedFilter, sortBy, sortOrder, showMyBugs, userRole, userName, priority, refreshTrigger])
 
-  // Fetch user role and name on mount
+  // Fetch user role and name on mount - THIS MUST COMPLETE FIRST
   useEffect(() => {
     const fetchUserInfo = async () => {
       try {
@@ -92,20 +121,30 @@ export default function BugDisplay() {
           const userData = await response.json()
           setUserRole(userData.role || null)
           setUserName(userData.name || null)
+          console.log('User info loaded:', userData.role, userData.name)
         }
       } catch (err) {
         console.error('Error fetching user info:', err)
+      } finally {
+        setUserInfoLoaded(true)
       }
     }
     
     fetchUserInfo()
   }, [])
 
-  // Fetch bugs when filters change
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Fetch bugs ONLY after user info is loaded
   useEffect(() => {
-    fetchBugs()
-  }, [searchKeywords, classification, closedFilter, sortBy, sortOrder, showMyBugs, userRole, userName])
+    if (userInfoLoaded) {
+      console.log('useEffect triggered - fetching bugs with role:', userRole, 'refreshTrigger:', refreshTrigger)
+      fetchBugs()
+    }
+  }, [userInfoLoaded, fetchBugs, userRole, refreshTrigger])
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchKeywords, classification, closedFilter, sortBy, sortOrder, showMyBugs, priority])
 
   const handleViewBug = (bug: Bug) => {
     setSelectedBug(bug)
@@ -117,25 +156,29 @@ export default function BugDisplay() {
     setEditDialogOpen(true)
   }
 
-  const handleSave = async () => {
-    await fetchBugs()
+  const handleSave = () => {
+    console.log('handleSave called - triggering refresh')
+    // Increment refresh trigger to force re-fetch
+    setRefreshTrigger(prev => prev + 1)
   }
 
   const clearFilters = () => {
     setSearchKeywords('')
     setClassification('')
     setClosedFilter('')
-    setSortBy('')
-    setSortOrder('')
+    setSortBy('createdAt')  // Reset to default sort
+    setSortOrder('desc')     // Reset to default order
     setShowMyBugs(false)
+    setPriority('')
   }
 
   const hasActiveFilters = searchKeywords || 
                       (classification && classification !== '') || 
                       (closedFilter && closedFilter !== '') || 
-                      (sortBy && sortBy !== '') ||
-                      (sortOrder && sortOrder !== '') ||
-                      showMyBugs
+                      (sortBy && sortBy !== 'createdAt') ||  // Changed: createdAt is now default
+                      (sortOrder && sortOrder !== 'desc') ||  // Changed: desc is now default
+                      showMyBugs ||
+                      priority
 
   if (loading && !data.length) {
     return <div className="container mx-auto py-10">Loading bugs...</div>
@@ -188,6 +231,15 @@ export default function BugDisplay() {
             className="flex items-center gap-2 whitespace-nowrap"
           >
             {showMyBugs ? "Showing My Bugs" : "Show My Bugs"}
+          </Button>
+
+          {/* Priority Filter */}
+          <Button
+            variant={priority === 'high' ? "default" : "outline"}
+            onClick={() => setPriority(priority === 'high' ? '' : 'high')}
+            className="flex items-center gap-2 whitespace-nowrap"
+          >
+            {priority === 'high' ? "Showing High Priority Bugs" : "Show High Priority Bugs"}
           </Button>
 
           {/* Clear Filters Button */}
@@ -260,16 +312,98 @@ export default function BugDisplay() {
         <div className="text-sm text-muted-foreground">
           {loading ? 'Loading...' : `Found ${data.length} bug${data.length !== 1 ? 's' : ''}`}
           {showMyBugs && !loading && ' assigned to you'}
+          {!loading && totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
         </div>
       </div>
+
+      {/* Pagination - Top */}
+      {data.length > 0 && (
+        <div className='flex items-center justify-between mb-4 p-3 bg-muted/50 rounded-lg'>
+          <div className='flex items-center gap-3'>
+            <LucideArrowBigLeft 
+              className={`h-6 w-6 cursor-pointer transition-colors ${
+                currentPage === 1 
+                  ? 'text-muted-foreground/30 cursor-not-allowed' 
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => {
+                if (currentPage > 1) {
+                  setCurrentPage(prev => prev - 1)
+                }
+              }} 
+            />
+            <span className='text-sm font-medium min-w-[120px] text-center'>
+              Page {currentPage} of {totalPages}
+            </span>
+            <LucideArrowBigRight 
+              className={`h-6 w-6 cursor-pointer transition-colors ${
+                currentPage === totalPages 
+                  ? 'text-muted-foreground/30 cursor-not-allowed' 
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => {
+                if (currentPage < totalPages) {
+                  setCurrentPage(prev => prev + 1)
+                }
+              }} 
+            />
+          </div>
+          <span className='text-sm text-muted-foreground'>
+            Showing {startIndex + 1}-{Math.min(endIndex, data.length)} of {data.length}
+          </span>
+        </div>
+      )}
 
       {/* Data Table */}
       <DataTable
         columns={columns(handleViewBug, handleEditBug)}
-        data={data}
+        data={paginatedData}
       />
 
+      {/* Pagination - Bottom */}
+      {data.length > 0 && (
+        <div className='flex items-center justify-center mt-4 p-3'>
+          <div className='flex items-center gap-3'>
+            <LucideArrowBigLeft 
+              className={`h-6 w-6 cursor-pointer transition-colors ${
+                currentPage === 1 
+                  ? 'text-muted-foreground/30 cursor-not-allowed' 
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => {
+                if (currentPage > 1) {
+                  setCurrentPage(prev => prev - 1)
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }
+              }} 
+            />
+            <span className='text-sm font-medium min-w-[120px] text-center'>
+              Page {currentPage} of {totalPages}
+            </span>
+            <LucideArrowBigRight 
+              className={`h-6 w-6 cursor-pointer transition-colors ${
+                currentPage === totalPages 
+                  ? 'text-muted-foreground/30 cursor-not-allowed' 
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => {
+                if (currentPage < totalPages) {
+                  setCurrentPage(prev => prev + 1)
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }
+              }} 
+            />
+          </div>
+        </div>
+      )}
+
       {/* Dialogs */}
+      <AddBugDialog
+        open={addBugOpen}
+        onOpenChange={setAddBugOpen}
+        onSave={handleSave}
+      />
+
       <ViewBugDialog
         bug={selectedBug}
         open={viewDialogOpen}

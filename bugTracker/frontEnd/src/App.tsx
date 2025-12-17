@@ -2,7 +2,7 @@ import { LoginForm } from '@/components/login-form';
 import './App.css'
 import { authClient } from '@/lib/betterAuth';
 import { SignupForm } from './components/signup-form';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ThemeProvider } from '@/components/ui/themeProvider';
 import { ModeToggle } from '@/components/ui/modeToggle';
 import BugDisplay from './components/bugDisplay';
@@ -14,7 +14,7 @@ import { AddBugDialog } from '@/components/addBugDialog';
 import { UsersPage } from '@/components/showUsers';
 import { ProtectedRoute } from '@/components/protectedRoute';
 import UserProfilePage from '@/components/userProfile';
-import { ToastContainer } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css'; 
 
 function App() {
@@ -34,6 +34,7 @@ function AppContent() {
   const { data: session, isPending } = authClient.useSession();
   const [showSignup, setShowSignup] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const hasCheckedHighPriorityBugsRef = useRef(false);
 
   const isAddBugDialogOpen = searchParams.get('addBug') === 'true';
  
@@ -46,6 +47,39 @@ function AppContent() {
       setSearchParams({});
     }
   };
+
+   // Check for high priority bugs on login
+  useEffect(() => {
+    if (session && !hasCheckedHighPriorityBugsRef.current) {
+      const checkHighPriorityBugs = async () => {
+        try {
+          const response = await fetch('http://localhost:5000/api/bugs?assignedToMe=true', {
+            credentials: 'include'
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            const highPriorityBugs = data.bugs?.filter((bug: any) => bug.priority === true) || [];
+            
+            if (highPriorityBugs.length > 0) {
+              toast.warning(
+                `You have ${highPriorityBugs.length} high priority bug${highPriorityBugs.length > 1 ? 's' : ''} assigned to you!`,
+                {
+                  autoClose: 5000,
+                  icon: '🚨',
+                }
+              );
+            }
+          }
+        } catch (error) {
+          console.error('Error checking high priority bugs:', error);
+        }
+      };
+
+      checkHighPriorityBugs();
+      hasCheckedHighPriorityBugsRef.current = true;
+    }
+  }, [session]);
 
   console.log('App render - isPending:', isPending);
   console.log('App render - session:', session);
