@@ -13,6 +13,7 @@ import {
   FieldLabel,
   FieldGroup,
 } from '@/components/ui/field'
+import { API_URL } from '@/config'
 
 interface AddBugDialogProps {
   open: boolean
@@ -33,7 +34,7 @@ export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) 
     console.log('Submitting bug:', { title, description})
 
     try {
-      const response = await fetch('http://localhost:5000/api/bugs', {
+      const response = await fetch(`${API_URL}/api/bugs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

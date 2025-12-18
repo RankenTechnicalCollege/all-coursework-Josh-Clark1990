@@ -12,8 +12,7 @@ export interface ExtendedUser {
 }
 
 export const authClient = createAuthClient({
-  baseURL:"http://localhost:5000/api/auth",
-  credentials:"include",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000"
 });
 
 export const { useSession } = authClient;

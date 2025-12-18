@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
+import { API_URL } from '@/config'
 
 interface EditBugDialogProps {
   bug: Bug | null
@@ -36,7 +37,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
   const [classification, setClassification] = useState('')
   const [assignedTo, setAssignedTo] = useState('')
   const [newComment, setNewComment] = useState('')
-  const [priority, setPriority] = useState('normal') //'normal' is the default priority
+  const [priority, setPriority] = useState('normal') 
   const [hoursWorked, setHoursWorked] = useState(0)
   
   // Test case fields
@@ -60,7 +61,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
 
     const fetchAssignableUsers = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/users/assignable-users', {
+        const response = await fetch(`${API_URL}/api/users/assignable-users`, {
           credentials: 'include'
         })
         if (response.ok) {
@@ -81,7 +82,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
 
     const fetchUserRole = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/bugs/me', { 
+        const response = await fetch(`${API_URL}/api/bugs/me`, { 
           credentials: 'include',
         })
         
@@ -147,7 +148,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
 
     try {
       // Get current user's ID
-      const userResponse = await fetch('http://localhost:5000/api/bugs/me', { 
+      const userResponse = await fetch(`${API_URL}/api/bugs/me`, { 
         credentials: 'include',
       })
       
@@ -198,7 +199,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
 
       // Only send update if there are fields to update
       if (Object.keys(updatePayload).length > 0) {
-        const bugResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}`, {
+        const bugResponse = await fetch(`${API_URL}/api/bugs/${bug._id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -216,7 +217,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
 
       // Add comment if provided (anyone can comment)
       if (newComment.trim()) {
-        const commentResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}/comments`, {
+        const commentResponse = await fetch(`${API_URL}/api/bugs/${bug._id}/comments`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -237,7 +238,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
       // Update hours worked if needed (only developers on bugs they authored or are assigned to)
       if (hoursWorked && hoursWorked > 0 && canEditHoursWorked) {
         console.log('Updating hours worked:', hoursWorked)
-        const hoursWorkedResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}/hours-worked`, {
+        const hoursWorkedResponse = await fetch(`${API_URL}/api/bugs/${bug._id}/hours-worked`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -254,7 +255,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
 
       // Change priority if needed (only tech/product managers)
       if (priority !== bug.priority && canEditPriority) {
-        const priorityResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}/priority`, {
+        const priorityResponse = await fetch(`${API_URL}/api/bugs/${bug._id}/priority`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -271,7 +272,7 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
 
       // Add test case if provided (only quality analysts)
       if (testCaseTitle.trim() && testCaseDescription.trim() && isQualityAnalyst) {
-        const testCaseResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}/tests`, {
+        const testCaseResponse = await fetch(`${API_URL}/api/bugs/${bug._id}/tests`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

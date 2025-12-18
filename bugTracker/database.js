@@ -12,11 +12,12 @@ let _client;
 // Connect to database
 export async function connectToDatabase() {
     if (!_db) {
-        const uri = process.env.MONGO_URI;
+        // Check for MONGO_URI first, fallback to DATABASE_URL
+        const uri = process.env.MONGO_URI || process.env.DATABASE_URL;
         const dbName = process.env.MONGO_DB_NAME;
 
         if (!uri || !dbName) {
-            throw new Error('❌ Missing MONGO_URI or MONGO_DB_NAME');
+            throw new Error('❌ Missing MONGO_URI/DATABASE_URL or MONGO_DB_NAME');
         }
 
         console.log('🔌 Connecting to MongoDB with TLS fallback...');

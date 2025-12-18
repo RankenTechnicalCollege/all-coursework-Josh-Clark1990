@@ -15,6 +15,7 @@ import { ProtectedRoute } from '@/components/protectedRoute';
 import UserProfilePage from '@/components/userProfile';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { API_URL } from '@/config';
 
 interface Bug {
   priority: string;
@@ -44,7 +45,7 @@ function AppContent() {
     if (session && !hasCheckedHighPriorityBugsRef.current) {
       const checkHighPriorityBugs = async () => {
         try {
-          const response = await fetch('http://localhost:5000/api/bugs?assignedToMe=true', {
+          const response = await fetch(`${API_URL}/api/bugs?assignedToMe=true`, {
             credentials: 'include'
           });
           

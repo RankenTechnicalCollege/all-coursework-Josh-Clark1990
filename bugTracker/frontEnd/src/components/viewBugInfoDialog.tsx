@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { API_URL } from '@/config'
 
 interface ViewBugDialogProps {
   bug: Bug | null
@@ -71,7 +72,7 @@ export function ViewBugDialog({ bug, open, onOpenChange, onEdit }: ViewBugDialog
       setLoading(true)
       try {
         // Fetch comments
-        const commentsRes = await fetch(`http://localhost:5000/api/bugs/${bug._id}/comments`, {
+        const commentsRes = await fetch(`${API_URL}/api/bugs/${bug._id}/comments`, {
           credentials: 'include',
         })
         if (commentsRes.ok) {
@@ -80,7 +81,7 @@ export function ViewBugDialog({ bug, open, onOpenChange, onEdit }: ViewBugDialog
         }
 
         // Fetch test cases
-        const testsRes = await fetch(`http://localhost:5000/api/bugs/${bug._id}/tests`, {
+        const testsRes = await fetch(`${API_URL}/api/bugs/${bug._id}/tests`, {
           credentials: 'include',
         })
         if (testsRes.ok) {

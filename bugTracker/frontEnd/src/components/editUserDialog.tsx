@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { API_URL } from '@/config'
 
 interface EditUserDialogProps {
   user: User | null
@@ -105,7 +106,7 @@ let endpoint = ''
 
 if (isOwnAccount) {
   // User editing their own profile - use /me endpoint
-  endpoint = 'http://localhost:5000/api/users/me'
+  endpoint = `${API_URL}/api/users/me`
 
   updateData.name = name
   updateData.email = email
@@ -122,7 +123,7 @@ if (isOwnAccount) {
   }
 } else if (isTechnicalManager) {
   // Technical manager editing another user - use /:id endpoint
-  endpoint = `http://localhost:5000/api/users/${user._id}`
+  endpoint = `${API_URL}/api/users/${user._id}`
   updateData.role = role
 } else {
   // User trying to edit someone else without being a technical manager

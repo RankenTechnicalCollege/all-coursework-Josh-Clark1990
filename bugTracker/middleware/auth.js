@@ -17,6 +17,7 @@ export const auth = betterAuth({
     "http://localhost:5173",
     "http://localhost:8080", 
     "http://localhost:5000",
+    "https://bugtracker-1019735204077.us-central1.run.app",
     process.env.BETTER_AUTH_URL,
   ],
   database: mongodbAdapter(db),
@@ -57,7 +58,7 @@ export const auth = betterAuth({
     disableCSRFCheck: true,
     cookieOptions: {
       sameSite: "lax",
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
       path: "/",
     },

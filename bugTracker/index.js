@@ -9,10 +9,15 @@ import { bugsRouter } from './routes/api/bugs.js';
 import { commentsRouter } from './routes/api/comments.js';
 import { testRouter } from './routes/api/test.js';
 import { authRouter } from './routes/api/auth.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Middleware
 app.use(express.json());
@@ -37,11 +42,17 @@ app.all('/api/auth/*', toNodeHandler(auth));
 
 // Custom session check middleware
 app.use(async (req, res, next) => {
-  const token = req.cookies['better-auth.session_token'];
+  // In production (HTTPS), Better Auth adds '__Secure-' prefix (two underscores, capital S)
+  const cookieName = process.env.NODE_ENV === 'production' 
+    ? '__Secure-better-auth.session_token'
+    : 'better-auth.session_token';
+    
+  const token = req.cookies[cookieName];
+  
   if (token) {
     try {
       const session = await auth.api.getSession({
-        headers: { Cookie: `better-auth.session_token=${token}` }
+        headers: { Cookie: `${cookieName}=${token}` }
       });
       if (session?.user) {
         const sessionUser = session.user;
@@ -64,14 +75,24 @@ app.use(async (req, res, next) => {
   }
   next();
 });
+
 // API routes
 app.use('/api/users', usersRouter);
 app.use('/api/bugs', bugsRouter);
 app.use('/api/bugs', commentsRouter);
 app.use('/api/bugs', testRouter);
 
-// Health check
-app.get('/', (req, res) => res.send('Bugtracker API running'));
+// Serve static files from React build
+app.use(express.static(path.join(__dirname, 'frontEnd/dist')));
+
+// Handle React routing - catch-all LAST
+app.get('*', (req, res, next) => {
+  // Skip if path has a file extension (like .js, .css, .png)
+  if (req.path.match(/\.[a-zA-Z0-9]+$/)) {
+    return next();
+  }
+  res.sendFile(path.join(__dirname, 'frontEnd/dist', 'index.html'));
+});
 
 // Start server
 const server = app.listen(PORT, '0.0.0.0', () => {

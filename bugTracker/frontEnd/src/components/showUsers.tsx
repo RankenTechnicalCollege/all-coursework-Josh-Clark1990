@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Search, X, RefreshCw } from 'lucide-react'
+import { API_URL } from '@/config'
 
 interface UsersPageProps {
   currentUser: {
@@ -46,7 +47,7 @@ export function UsersPage({ currentUser }: UsersPageProps) {
       if (sortBy && sortBy !== 'all') params.append('sortBy', sortBy)
       if (sortOrder && sortOrder !== 'all') params.append('order', sortOrder)
 
-      const response = await fetch(`http://localhost:5000/api/users?${params.toString()}`, {
+      const response = await fetch(`${API_URL}/api/users?${params.toString()}`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'

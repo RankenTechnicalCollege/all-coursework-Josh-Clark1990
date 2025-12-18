@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Search, X, RefreshCw, LucideArrowBigLeft, LucideArrowBigRight } from "lucide-react"
+import { API_URL } from '@/config'
 
 export default function BugDisplay() { 
   const [data, setData] = useState<Bug[]>([])
@@ -76,7 +77,7 @@ export default function BugDisplay() {
       if (showMyBugs) params.append('assignedToMe', 'true')
       if (priority && priority !== 'all') params.append('priority', priority)
 
-      const response = await fetch(`http://localhost:5000/api/bugs?${params.toString()}`, {
+      const response = await fetch(`${API_URL}/api/bugs?${params.toString()}`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -113,7 +114,7 @@ export default function BugDisplay() {
   useEffect(() => {
     const fetchUserInfo = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/bugs/me', {
+        const response = await fetch(`${API_URL}/api/bugs/me`, {
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json'

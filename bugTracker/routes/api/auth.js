@@ -118,14 +118,18 @@ authRouter.post('/sign-in/email', validate(loginSchema), async (req, res) => {
 // -----------------------------------------------------------------------------
 authRouter.post('/sign-out', async (req, res) => {
   try {
-    const token = req.cookies['better-auth.session_token'];
+    const cookieName = process.env.NODE_ENV === 'production' 
+      ? '__Secure-better-auth.session_token'
+      : 'better-auth.session_token';
+      
+    const token = req.cookies[cookieName];
 
     if (token) {
       const db = mongoClient.db();
       await db.collection('session').deleteOne({ token }).catch(() => {});
     }
 
-    res.clearCookie('better-auth.session_token', {
+    res.clearCookie(cookieName, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -138,5 +142,4 @@ authRouter.post('/sign-out', async (req, res) => {
     res.status(500).json({ error: 'Failed to sign out' });
   }
 });
-
 export default authRouter;
