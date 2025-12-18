@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { type Bug, columns } from "./ui/columns"
 import { DataTable } from "./ui/dataTable"
@@ -40,7 +40,7 @@ export default function BugDisplay() {
   const [showMyBugs, setShowMyBugs] = useState(false)
   const [priority, setPriority] = useState<string>('')
   const [currentPage, setCurrentPage] = useState(1)
-  const [refreshTrigger, setRefreshTrigger] = useState(0)  // Add refresh trigger
+  const [, forceUpdate] = useState(0)  // Force re-render trigger
   
   // Pagination configuration
   const itemsPerPage = 10
@@ -59,7 +59,7 @@ export default function BugDisplay() {
     setSearchParams(searchParams)
   }
 
-  const fetchBugs = useCallback(async () => {
+  const fetchBugs = async () => {
     console.log('fetchBugs starting...')
     try {
       setLoading(true)
@@ -91,20 +91,23 @@ export default function BugDisplay() {
       
       // For "user" role, filter to only bugs they authored
       let bugs = result.bugs || result || []
+      console.log('Total bugs from API:', bugs.length)
+      console.log('Current userRole:', userRole, 'userName:', userName)
+      
       if (userRole === 'user' && userName) {
         bugs = bugs.filter((bug: Bug) => bug.authorOfBug === userName)
-        console.log('Filtered to user bugs:', bugs.length)
+
       }
       
-      console.log('Setting data with', bugs.length, 'bugs')
-      setData(bugs)
+
+      setData([...bugs])  // Create new array reference to ensure React detects change
     } catch (err) {
       console.error('Error fetching bugs:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch bugs')
     } finally {
       setLoading(false)
     }
-  }, [searchKeywords, classification, closedFilter, sortBy, sortOrder, showMyBugs, userRole, userName, priority, refreshTrigger])
+  }
 
   // Fetch user role and name on mount - THIS MUST COMPLETE FIRST
   useEffect(() => {
@@ -136,10 +139,16 @@ export default function BugDisplay() {
   // Fetch bugs ONLY after user info is loaded
   useEffect(() => {
     if (userInfoLoaded) {
-      console.log('useEffect triggered - fetching bugs with role:', userRole, 'refreshTrigger:', refreshTrigger)
+      console.log('useEffect triggered - fetching bugs with role:', userRole)
       fetchBugs()
     }
-  }, [userInfoLoaded, fetchBugs, userRole, refreshTrigger])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userInfoLoaded, searchKeywords, classification, closedFilter, sortBy, sortOrder, showMyBugs, userRole, userName, priority])
+
+  // Debug: Log when data state changes
+  useEffect(() => {
+    console.log('DATA STATE CHANGED! New data length:', data.length)
+  }, [data])
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -156,10 +165,11 @@ export default function BugDisplay() {
     setEditDialogOpen(true)
   }
 
-  const handleSave = () => {
-    console.log('handleSave called - triggering refresh')
-    // Increment refresh trigger to force re-fetch
-    setRefreshTrigger(prev => prev + 1)
+  const handleSave = async () => {
+    console.log('=== handleSave CALLED ===')
+    await fetchBugs()
+    console.log('=== fetchBugs COMPLETED ===')
+    forceUpdate(n => n + 1)  // Force re-render
   }
 
   const clearFilters = () => {
@@ -207,6 +217,9 @@ export default function BugDisplay() {
       </div>
     )
   }
+
+  console.log('=== RENDER: handleSave is:', handleSave)
+console.log('=== RENDER: setAddBugOpen is:', setAddBugOpen)
 
   return (
     <div className="container mx-auto py-10">
@@ -356,6 +369,7 @@ export default function BugDisplay() {
 
       {/* Data Table */}
       <DataTable
+        key={data.length}  // Force re-render when data length changes
         columns={columns(handleViewBug, handleEditBug)}
         data={paginatedData}
       />

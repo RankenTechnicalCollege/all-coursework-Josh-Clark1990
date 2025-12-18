@@ -9,13 +9,17 @@ import BugDisplay from './components/bugDisplay';
 import Navbar from '@/components/ui/navigation-menu';
 import { BrowserRouter } from 'react-router-dom';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { Routes, Route, useSearchParams } from 'react-router-dom';
-import { AddBugDialog } from '@/components/addBugDialog'; 
+import { Routes, Route } from 'react-router-dom';
 import { UsersPage } from '@/components/showUsers';
 import { ProtectedRoute } from '@/components/protectedRoute';
 import UserProfilePage from '@/components/userProfile';
 import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css'; 
+import 'react-toastify/dist/ReactToastify.css';
+
+interface Bug {
+  priority: string;
+  [key: string]: unknown;
+}
 
 function App() {
   return (
@@ -33,22 +37,9 @@ function App() {
 function AppContent() {
   const { data: session, isPending } = authClient.useSession();
   const [showSignup, setShowSignup] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
   const hasCheckedHighPriorityBugsRef = useRef(false);
 
-  const isAddBugDialogOpen = searchParams.get('addBug') === 'true';
- 
-  const handleBugSave = () => {
-    setSearchParams({});
-  };
-
-  const handleDialogClose = (open: boolean) => {
-    if(!open) {
-      setSearchParams({});
-    }
-  };
-
-   // Check for high priority bugs on login
+  // Check for high priority bugs on login
   useEffect(() => {
     if (session && !hasCheckedHighPriorityBugsRef.current) {
       const checkHighPriorityBugs = async () => {
@@ -59,14 +50,14 @@ function AppContent() {
           
           if (response.ok) {
             const data = await response.json();
-            const highPriorityBugs = data.bugs?.filter((bug: any) => bug.priority === true) || [];
+            const highPriorityBugs = data.bugs?.filter((bug: Bug) => bug.priority === 'high') || [];
+
             
             if (highPriorityBugs.length > 0) {
               toast.warning(
                 `You have ${highPriorityBugs.length} high priority bug${highPriorityBugs.length > 1 ? 's' : ''} assigned to you!`,
                 {
                   autoClose: 5000,
-                  icon: '🚨',
                 }
               );
             }
@@ -141,12 +132,7 @@ function AppContent() {
         </Routes>
       </main>
 
-      {/* Add Bug Dialog */}
-      <AddBugDialog
-        open={isAddBugDialogOpen}
-        onOpenChange={handleDialogClose} 
-        onSave={handleBugSave}
-      />
+      {/* AddBugDialog is now handled inside BugDisplay component */}
     </div>
   )
 }

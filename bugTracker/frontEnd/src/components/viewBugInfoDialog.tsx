@@ -40,6 +40,7 @@ interface TestCase {
   authorName: string
   description: string
   status: string
+  assignedTo: string
 }
 
 // Helper function to format date and time
@@ -64,39 +65,39 @@ export function ViewBugDialog({ bug, open, onOpenChange, onEdit }: ViewBugDialog
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    const fetchBugDetails = async () => {
+      if (!bug) return
+
+      setLoading(true)
+      try {
+        // Fetch comments
+        const commentsRes = await fetch(`http://localhost:5000/api/bugs/${bug._id}/comments`, {
+          credentials: 'include',
+        })
+        if (commentsRes.ok) {
+          const commentsData = await commentsRes.json()
+          setComments(commentsData)
+        }
+
+        // Fetch test cases
+        const testsRes = await fetch(`http://localhost:5000/api/bugs/${bug._id}/tests`, {
+          credentials: 'include',
+        })
+        if (testsRes.ok) {
+          const testsData = await testsRes.json()
+          setTestCases(testsData)
+        }
+      } catch (err) {
+        console.error('Failed to fetch bug details:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
     if (bug && open) {
       fetchBugDetails()
     }
   }, [bug, open])
-
-  const fetchBugDetails = async () => {
-    if (!bug) return
-
-    setLoading(true)
-    try {
-      // Fetch comments
-      const commentsRes = await fetch(`http://localhost:5000/api/bugs/${bug._id}/comments`, {
-        credentials: 'include',
-      })
-      if (commentsRes.ok) {
-        const commentsData = await commentsRes.json()
-        setComments(commentsData)
-      }
-
-      // Fetch test cases
-      const testsRes = await fetch(`http://localhost:5000/api/bugs/${bug._id}/tests`, {
-        credentials: 'include',
-      })
-      if (testsRes.ok) {
-        const testsData = await testsRes.json()
-        setTestCases(testsData)
-      }
-    } catch (err) {
-      console.error('Failed to fetch bug details:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   if (!bug) return null
 
@@ -173,11 +174,11 @@ export function ViewBugDialog({ bug, open, onOpenChange, onEdit }: ViewBugDialog
               </p>
             </div>
 
-            {/* Assigned To */}
-            {bug.assignedTo && (
+            {/* Assigned User */}    
+            {bug.assignedUserName && (
               <div>
                 <h3 className="text-sm font-medium text-gray-500 mb-1">Assigned To</h3>
-                <p className="text-sm">{bug.assignedTo}</p>
+                <p className="text-sm">{bug.assignedUserName}</p>
               </div>
             )}
 

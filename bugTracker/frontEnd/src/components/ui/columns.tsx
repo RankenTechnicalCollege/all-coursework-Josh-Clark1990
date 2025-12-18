@@ -6,6 +6,7 @@ import { LucideBadgeAlert } from "lucide-react"
 
 export type Bug = {
   _id: string
+  id?: string  // Some bugs might use 'id' instead of '_id'
   title: string
   description: string
   statusLabel: string
@@ -15,6 +16,7 @@ export type Bug = {
   stepsToReproduce: string
   priority: string
   hoursWorked: number
+  createdAt?: string  // Date the bug was created
 }
 
 export const columns = (

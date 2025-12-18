@@ -1,4 +1,3 @@
-// add feature to make it so only editing a bug can be done by author of the bug, the user the bug is assigned to, or technical manager or product manager, other users can only view and comment on the bug or the quality analyst can add
 import { useState, useEffect } from 'react'
 import { type Bug } from './ui/columns'
 import {
@@ -27,7 +26,7 @@ interface EditBugDialogProps {
   bug: Bug | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: () => void
+  onSave: () => Promise<void>
 }
 
 export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialogProps) {
@@ -118,7 +117,28 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
     }
   }, [bug, open])
 
-  const canEditDescription = Boolean(currentUserName && bug?.authorOfBug && currentUserName === bug.authorOfBug)
+  // Permission checks
+  const isAuthor = Boolean(currentUserName && bug?.authorOfBug && currentUserName === bug.authorOfBug)
+  const isAssignedDeveloper = Boolean(currentUserName && bug?.assignedUserName && currentUserName === bug.assignedUserName)
+  const isUser = userRole === 'user'
+  const isDeveloper = userRole === 'developer'
+  
+  // Users can ONLY edit their own bugs (not bugs assigned to them)
+  // Other roles can edit bugs they created OR bugs assigned to them
+  const canEditBug = isUser ? isAuthor : (isAuthor || isAssignedDeveloper)
+  
+  const isTechOrProductManager = ['technical manager', 'product manager'].includes(userRole || '')
+  const isBusinessAnalyst = userRole === 'business analyst'
+  const isQualityAnalyst = userRole === 'quality analyst'
+  
+  // Field-specific permissions
+  const canEditDescription = canEditBug 
+  const canEditStepsToReproduce = !isUser && canEditBug 
+  const canEditHoursWorked = !isUser && isDeveloper && (isAuthor || isAssignedDeveloper)
+  const canEditStatus = !isUser && (canEditBug || isBusinessAnalyst) 
+  const canEditClassification = isTechOrProductManager
+  const canEditPriority = isTechOrProductManager
+  const canEditAssignedTo = isTechOrProductManager
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -138,33 +158,63 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
       const userData = await userResponse.json()
       const userId = userData._id || userData.id
 
-      const updatePayload: any = {
-        statusLabel,
-        classification,
-        assignedTo: assignedTo,
-        stepsToReproduce,
-      }
+      const updatePayload: Partial<{
+        description: string
+        stepsToReproduce: string
+        statusLabel: string
+        classification: string
+        assignedTo: string
+      }> = {}
 
+      // Only include fields user has permission to change
       if (canEditDescription) {
         updatePayload.description = description
       }
 
-      const bugResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(updatePayload),
-      })
-
-      const bugData = await bugResponse.json()
-
-      if (!bugResponse.ok) {
-        throw new Error(bugData.message || 'Failed to update bug')
+      if (canEditStepsToReproduce) {
+        updatePayload.stepsToReproduce = stepsToReproduce
       }
 
-      // Add comment if provided
+      if (canEditStatus) {
+        // Business analysts can only mark as resolved
+        if (isBusinessAnalyst && !canEditBug) {
+          if (statusLabel === 'resolved') {
+            updatePayload.statusLabel = statusLabel
+          } else {
+            throw new Error('Business analysts can only mark bugs as resolved')
+          }
+        } else {
+          updatePayload.statusLabel = statusLabel
+        }
+      }
+
+      if (canEditClassification) {
+        updatePayload.classification = classification
+      }
+
+      if (canEditAssignedTo) {
+        updatePayload.assignedTo = assignedTo
+      }
+
+      // Only send update if there are fields to update
+      if (Object.keys(updatePayload).length > 0) {
+        const bugResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify(updatePayload),
+        })
+
+        const bugData = await bugResponse.json()
+
+        if (!bugResponse.ok) {
+          throw new Error(bugData.message || 'Failed to update bug')
+        }
+      }
+
+      // Add comment if provided (anyone can comment)
       if (newComment.trim()) {
         const commentResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}/comments`, {
           method: 'POST',
@@ -184,8 +234,8 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
         }
       }
       
-      //update hours worked if needed
-      if (hoursWorked && hoursWorked > 0 && userRole === 'developer') {
+      // Update hours worked if needed (only developers on bugs they authored or are assigned to)
+      if (hoursWorked && hoursWorked > 0 && canEditHoursWorked) {
         console.log('Updating hours worked:', hoursWorked)
         const hoursWorkedResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}/hours-worked`, {
           method: 'PATCH',
@@ -202,8 +252,8 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
         }
       }
 
-      //Change priority if needed
-      if (priority !== bug.priority && (userRole === 'technical manager' || userRole === 'business analyst' || userRole === 'product manager')) {
+      // Change priority if needed (only tech/product managers)
+      if (priority !== bug.priority && canEditPriority) {
         const priorityResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}/priority`, {
           method: 'PATCH',
           headers: {
@@ -219,8 +269,8 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
         }
       }
 
-      // Add test case if provided
-      if (testCaseTitle.trim() && testCaseDescription.trim() && userRole === 'quality analyst') {
+      // Add test case if provided (only quality analysts)
+      if (testCaseTitle.trim() && testCaseDescription.trim() && isQualityAnalyst) {
         const testCaseResponse = await fetch(`http://localhost:5000/api/bugs/${bug._id}/tests`, {
           method: 'POST',
           headers: {
@@ -242,8 +292,12 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
       }
 
       setError(null)
-      await onSave()
+      
+      // Close dialog first
       onOpenChange(false)
+      
+      // Then trigger refresh
+      await onSave()
       
     } catch (err) {
       console.error('Update error:', err)
@@ -284,21 +338,23 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
                   className={`w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2 ${!canEditDescription ? 'opacity-60 cursor-not-allowed' : ''}`}
                 />
                 {!canEditDescription && (
-                  <div className="text-sm text-muted-foreground mt-1">Only the bug author can edit the description.</div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Only the bug author {!isUser && 'or assigned developer'} can edit the description.
+                  </div>
                 )}
               </Field>
 
-              {['developer'].includes(userRole || '') && (
-              <Field>
-                <FieldLabel htmlFor="stepsToReproduce">Steps to Reproduce</FieldLabel>
-                <textarea
-                  id="stepsToReproduce"
-                  value={stepsToReproduce}
-                  onChange={(e) => setStepsToReproduce(e.target.value)}
-                  placeholder="Steps to reproduce the bug"
-                  className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2"
-                />
-              </Field>
+              {canEditStepsToReproduce && (
+                <Field>
+                  <FieldLabel htmlFor="stepsToReproduce">Steps to Reproduce</FieldLabel>
+                  <textarea
+                    id="stepsToReproduce"
+                    value={stepsToReproduce}
+                    onChange={(e) => setStepsToReproduce(e.target.value)}
+                    placeholder="Steps to reproduce the bug"
+                    className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2"
+                  />
+                </Field>
               )}
 
               <Field>
@@ -307,12 +363,12 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
                   id="newComment"
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Add comment here"
+                  placeholder="Add comment here (anyone can comment)"
                   className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2"
                 />
               </Field>
 
-              {['developer'].includes(userRole || '') && (
+              {canEditHoursWorked && (
                 <Field>
                   <FieldLabel htmlFor="hoursWorked">Hours Worked</FieldLabel>
                   <Input
@@ -320,11 +376,16 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
                     type="number"
                     value={hoursWorked}
                     onChange={(e) => setHoursWorked(Number(e.target.value))}
+                    min="0"
+                    step="0.5"
                   />
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Only developers can update hours worked on bugs they authored or are assigned to.
+                  </div>
                 </Field>
               )}
 
-              {['technical manager', 'business analyst', 'product manager'].includes(userRole || '') && (
+              {canEditClassification && (
                 <Field>
                   <FieldLabel htmlFor="classification">Classification</FieldLabel>
                   <Select value={classification} onValueChange={setClassification}>
@@ -339,27 +400,37 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
                 </Field>
               )}
 
-
-               {['technical manager', 'business analyst', 'product manager'].includes(userRole || '') && (
-              <Field>
-                <FieldLabel htmlFor="statusLabel">Status</FieldLabel>
-                <Select value={statusLabel} onValueChange={setStatusLabel}>
-                  <SelectTrigger id="statusLabel">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="open">Open</SelectItem>
-                    <SelectItem value="resolved">Resolved</SelectItem>
-                    <SelectItem value="closed">Closed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-               )}
-
-                
-               {['technical manager', 'business analyst', 'product manager'].includes(userRole || '') && (
+              {canEditStatus && (
                 <Field>
-                  <FieldLabel htmlFor ="priority">Priority</FieldLabel>
+                  <FieldLabel htmlFor="statusLabel">Status</FieldLabel>
+                  <Select value={statusLabel} onValueChange={setStatusLabel}>
+                    <SelectTrigger id="statusLabel">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {/* Show all options for author/assigned dev, only 'resolved' for business analysts */}
+                      {canEditBug ? (
+                        <>
+                          <SelectItem value="open">Open</SelectItem>
+                          <SelectItem value="resolved">Resolved</SelectItem>
+                          <SelectItem value="closed">Closed</SelectItem>
+                        </>
+                      ) : (
+                        <SelectItem value="resolved">Resolved</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {isBusinessAnalyst && !canEditBug && (
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Business analysts can only mark bugs as resolved.
+                    </div>
+                  )}
+                </Field>
+              )}
+
+              {canEditPriority && (
+                <Field>
+                  <FieldLabel htmlFor="priority">Priority</FieldLabel>
                   <Select value={priority} onValueChange={setPriority}>
                     <SelectTrigger id="priority">
                       <SelectValue placeholder="Select priority" />
@@ -370,39 +441,38 @@ export function EditBugDialog({ bug, open, onOpenChange, onSave }: EditBugDialog
                     </SelectContent>
                   </Select>
                 </Field>
-               )}
+              )}
 
-              
-               {['technical manager', 'business analyst', 'product manager'].includes(userRole || '') && (
-              <Field>
-                <FieldLabel htmlFor="assignedTo">Assigned To</FieldLabel>
-                {assignableUsers.length === 0 ? (
-                  <div className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
-                    Loading users...
-                  </div>
-                ) : (
-                  <Select 
-                    value={assignedTo || "unassigned"} 
-                    onValueChange={(value) => setAssignedTo(value === "unassigned" ? "" : value)}
-                  >
-                    <SelectTrigger id="assignedTo">
-                      <SelectValue placeholder="Select a user to assign" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
-                      {assignableUsers.map((user) => (
-                        <SelectItem key={user._id} value={user.name}>
-                          {user.name} ({user.role})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </Field>
-               )}
+              {canEditAssignedTo && (
+                <Field>
+                  <FieldLabel htmlFor="assignedTo">Assigned To</FieldLabel>
+                  {assignableUsers.length === 0 ? (
+                    <div className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
+                      Loading users...
+                    </div>
+                  ) : (
+                    <Select 
+                      value={assignedTo || "unassigned"} 
+                      onValueChange={(value) => setAssignedTo(value === "unassigned" ? "" : value)}
+                    >
+                      <SelectTrigger id="assignedTo">
+                        <SelectValue placeholder="Select a user to assign" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {assignableUsers.map((user) => (
+                          <SelectItem key={user._id} value={user.name}>
+                            {user.name} ({user.role})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </Field>
+              )}
 
               {/* Test Case Section - Only for Quality Analysts */}
-              {userRole === 'quality analyst' && (
+              {isQualityAnalyst && (
                 <>
                   <div className="border-t pt-4 mt-4">
                     <h3 className="text-sm font-semibold mb-3">Add Test Case</h3>

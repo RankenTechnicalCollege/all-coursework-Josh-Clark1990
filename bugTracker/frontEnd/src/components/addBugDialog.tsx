@@ -17,7 +17,7 @@ import {
 interface AddBugDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: () => void  // Now synchronous
+  onSave: () => Promise<void>  // Async function that calls fetchBugs
 }
 
 export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) {
@@ -48,6 +48,7 @@ export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) 
       const data = await response.json()
       console.log('Response status:', response.status)
       console.log('Response data:', data)
+      console.log('Created bug author:', data.bug?.authorOfBug || data.authorOfBug)
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to submit bug')
@@ -60,12 +61,14 @@ export function AddBugDialog({ open, onOpenChange, onSave }: AddBugDialogProps) 
       setDescription('')
       setError(null)
       
-      // Close dialog first for better UX
-      onOpenChange(false)
+      // IMPORTANT: Call onSave FIRST and wait for it to complete
+      console.log('Calling onSave (fetchBugs) to refresh list...')
+      console.log('onSave function:', typeof onSave, onSave)
+      await onSave()
+      console.log('onSave completed, now closing dialog')
       
-      // Trigger refresh (this is now synchronous - just updates state)
-      console.log('Calling onSave to trigger refresh')
-      onSave()
+      // Close dialog AFTER refresh completes
+      onOpenChange(false)
       
     } catch (err) {
       console.error('Error adding bug:', err)
